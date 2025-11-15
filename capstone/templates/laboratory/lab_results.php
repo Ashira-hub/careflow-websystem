@@ -114,14 +114,14 @@
                 $testsAttr = htmlspecialchars(implode(', ', array_unique($testsForSearch)), ENT_QUOTES, 'UTF-8');
                 $recordsJson = htmlspecialchars(json_encode($compact), ENT_QUOTES, 'UTF-8');
               ?>
-              <tr data-patient="<?php echo htmlspecialchars($g['name']); ?>" data-tests="<?php echo $testsAttr; ?>">
-                <td style="font-weight:600;"><?php echo htmlspecialchars($g['name']); ?></td>
-                <td><?php echo htmlspecialchars($g['latest_date']); ?></td>
+              <tr data-patient="<?php echo htmlspecialchars((string)$g['name']); ?>" data-tests="<?php echo $testsAttr; ?>">
+                <td style="font-weight:600;"><?php echo htmlspecialchars((string)$g['name']); ?></td>
+                <td><?php echo htmlspecialchars((string)$g['latest_date']); ?></td>
                 <td>
                   <button class="btn btn-outline view-record-btn"
-                    data-patient="<?php echo htmlspecialchars($g['name']); ?>"
-                    data-latest-date="<?php echo htmlspecialchars($g['latest_date']); ?>"
-                    data-status="<?php echo htmlspecialchars($g['latest_status']); ?>"
+                    data-patient="<?php echo htmlspecialchars((string)$g['name']); ?>"
+                    data-latest-date="<?php echo htmlspecialchars((string)$g['latest_date']); ?>"
+                    data-status="<?php echo htmlspecialchars((string)$g['latest_status']); ?>"
                     data-records='<?php echo $recordsJson; ?>'
                     style="padding:4px 8px;font-size:0.8rem;">View</button>
                 </td>
