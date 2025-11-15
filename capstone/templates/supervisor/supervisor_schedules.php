@@ -34,8 +34,10 @@ try {
                  note,
                  station,
                  created_at,
-                 created_by_user_id
+                 created_by_user_id,
+                 status
           FROM schedules
+          WHERE LOWER(COALESCE(status, '')) = 'accepted'
           ORDER BY created_at DESC";
   $stmtReq = $pdo->query($sql);
   foreach ($stmtReq as $row) {
@@ -57,8 +59,8 @@ try {
       'ward' => trim((string)($row['station'] ?? '')),
       // note column holds any notes/details
       'notes' => trim((string)($row['note'] ?? '')),
-      // no status column in schema; default to 'request'
-      'status' => 'request',
+      // status column from schedules table
+      'status' => strtolower((string)($row['status'] ?? 'request')),
     ];
   }
 } catch (Throwable $e) {
