@@ -212,7 +212,8 @@ if ($method === 'POST') {
     'time' => $time,
     'read' => false,
     'status' => 'new',
-    'prescription_id' => $prescriptionId
+    'prescription_id' => $prescriptionId,
+    'doctor_id' => $doctorId
   ];
   $items[] = $new;
   save_store($rf, $items);

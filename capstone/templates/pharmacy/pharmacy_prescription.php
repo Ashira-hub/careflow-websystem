@@ -126,6 +126,7 @@
   var bDispense = document.getElementById('rxDispense');
   var items = [];
   var selectedId = null;
+  var selectedItem = null;
   var pageSize = 8;
   var currentPage = 1;
   var pager = document.getElementById('rxPager');
@@ -279,6 +280,7 @@
   }
   function openModal(item){
     selectedId = item.id;
+    selectedItem = item;
     mTitle.textContent = item.title||'Prescription';
     mTime.textContent = formatDateTime(item.time);
     if(fId){ fId.value = item.id; }
@@ -306,7 +308,11 @@
     if(item) openModal(item);
   });
   async function putStatus(id, status){
-    var res = await fetch('/capstone/notifications/pharmacy.php?id='+encodeURIComponent(id),{
+    var extra = '';
+    if (selectedItem && selectedItem.doctor_id) {
+      extra += '&doctor_id='+encodeURIComponent(selectedItem.doctor_id);
+    }
+    var res = await fetch('/capstone/notifications/pharmacy.php?id='+encodeURIComponent(id)+extra,{
       method:'PUT',
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ status: status, read: true })

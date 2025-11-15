@@ -33,6 +33,7 @@ try {
       </nav>
     <script>
 window.addEventListener('DOMContentLoaded', function(){
+  var doctorId = <?php echo isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0; ?>;
   var form = document.querySelector('.rx-form form');
   if(!form) return;
   form.addEventListener('submit', async function(e){
@@ -84,11 +85,11 @@ window.addEventListener('DOMContentLoaded', function(){
       }
       var body = parts.join(' | ');
 
-      // Notify pharmacy, include prescription_id so backend can update DB status
+      // Notify pharmacy, include prescription_id and doctor_id so backend can update DB status and doctor notifications
       var notifRes = await fetch('/capstone/notifications/pharmacy.php',{
         method:'POST',
         headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ title:title, body:body, prescription_id: prescriptionId })
+        body: JSON.stringify({ title:title, body:body, prescription_id: prescriptionId, doctor_id: doctorId })
       });
       
       if(!notifRes.ok){ 
