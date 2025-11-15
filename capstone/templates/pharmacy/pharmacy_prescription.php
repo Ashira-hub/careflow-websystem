@@ -249,9 +249,13 @@
       if(!res.ok) throw new Error('Failed to load');
       var data = await res.json();
       items = Array.isArray(data.items)?data.items:[];
+      // Show only doctor-origin pharmacy prescriptions in this list.
+      // Exclude acknowledged/done and any nurse-origin notifications.
       items = items.filter(function(n){
         var st = (n.status || '').toLowerCase();
-        return st !== 'acknowledged' && st !== 'done';
+        var title = (n.title || '');
+        var isDoctorPrescription = title.indexOf('New prescription from ') === 0;
+        return isDoctorPrescription && st !== 'acknowledged' && st !== 'done';
       });
       currentPage = 1;
       renderPage();

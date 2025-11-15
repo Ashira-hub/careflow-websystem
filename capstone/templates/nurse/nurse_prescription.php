@@ -290,7 +290,7 @@ try {
       var patient = fields.patient.textContent || 'Unknown Patient';
       var medicine = fields.medicine.textContent || 'Unknown Medicine';
       var nurseName = <?php echo json_encode($_SESSION['user']['name'] ?? 'Nurse'); ?>;
-      // Send notification to doctor only (do not reflect in pharmacy prescription list)
+      // Notify doctor that nurse acknowledged the prescription
       var doctorNotification = {
         title: 'Prescription Acknowledged by Nurse',
         body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Acknowledged',
@@ -306,8 +306,21 @@ try {
         body: JSON.stringify(doctorNotification)
       });
       
-      if(!doctorRes.ok){
-        alert('Prescription acknowledged but failed to notify doctor.');
+      // Notify pharmacy as well (for their notification center, not for the prescription list UI)
+      var pharmacyNotification = {
+        title: 'Prescription Acknowledged by Nurse',
+        body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Acknowledged',
+        status: 'pending'
+      };
+      var pharmacyUrl = '/capstone/notifications/pharmacy.php?role=pharmacy';
+      var pharmacyRes = await fetch(pharmacyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pharmacyNotification)
+      });
+      
+      if(!(doctorRes.ok && pharmacyRes.ok)){
+        alert('Prescription acknowledged but failed to send some notifications.');
       }
     }catch(err){
       console.error('Failed to send notifications:', err);
@@ -320,7 +333,7 @@ try {
       var patient = fields.patient.textContent || 'Unknown Patient';
       var medicine = fields.medicine.textContent || 'Unknown Medicine';
       var nurseName = <?php echo json_encode($_SESSION['user']['name'] ?? 'Nurse'); ?>;
-      // Notify doctor only (do not reflect in pharmacy prescription list)
+      // Notify doctor that nurse has completed/administered the prescription
       var doctorNotification = {
         title: 'Prescription administered by Nurse',
         body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Done',
@@ -335,9 +348,22 @@ try {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(doctorNotification)
       });
+      
+      // Notify pharmacy as well
+      var pharmacyNotification = {
+        title: 'Prescription administered by Nurse',
+        body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Done',
+        status: 'pending'
+      };
+      var pharmacyUrl = '/capstone/notifications/pharmacy.php?role=pharmacy';
+      var pharmacyRes = await fetch(pharmacyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pharmacyNotification)
+      });
 
-      if(!doctorRes.ok){
-        alert('Prescription completed but failed to notify doctor.');
+      if(!(doctorRes.ok && pharmacyRes.ok)){
+        alert('Prescription completed but failed to send some notifications.');
       }
     }catch(err){
       console.error('Failed to send done notifications:', err);
