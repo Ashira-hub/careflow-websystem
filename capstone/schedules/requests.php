@@ -256,10 +256,16 @@ if ($method === 'PUT') {
 }
 
 if ($method === 'DELETE') {
-  // Optional: clear all (admin use). Keep consistent with previous behavior.
   $pdo = pdo_safe();
   try {
-    $pdo->exec('DELETE FROM schedules');
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    if ($id > 0) {
+      $stmt = $pdo->prepare('DELETE FROM schedules WHERE id = :id');
+      $stmt->execute([':id' => $id]);
+    } else {
+      // Fallback: clear all (admin use), preserving previous behavior
+      $pdo->exec('DELETE FROM schedules');
+    }
     echo json_encode(['ok'=>true]);
     exit;
   } catch (Throwable $e) {

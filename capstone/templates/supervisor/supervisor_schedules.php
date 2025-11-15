@@ -562,13 +562,23 @@ include __DIR__.'/../../includes/header.php';
         e.preventDefault();
         e.stopPropagation();
         var name = item.getAttribute('data-nurse') || 'this schedule';
-        if(confirm('Delete '+name+'? This cannot be undone.')){
-          item.parentNode.removeChild(item);
-          // Toggle empty message if list is empty
+        var id = item.getAttribute('data-id');
+        if(!id) return;
+        if(!confirm('Delete '+name+'? This cannot be undone.')) return;
+        fetch('/capstone/schedules/requests.php?id='+encodeURIComponent(id), {
+          method: 'DELETE'
+        }).then(function(res){
+          if(!res.ok) throw new Error('Failed to delete schedule');
+          return res.json();
+        }).then(function(){
+          // Remove from DOM after successful delete
+          if(item.parentNode){ item.parentNode.removeChild(item); }
           var anyLeft = scheduleItems.querySelector('.schedule-item');
           var emptyMsg = document.getElementById('noScheduleMsg');
           if(!anyLeft && emptyMsg){ emptyMsg.style.display = ''; }
-        }
+        }).catch(function(err){
+          alert('Error deleting schedule: '+err.message);
+        });
         return;
       }
 
