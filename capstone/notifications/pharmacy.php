@@ -192,6 +192,7 @@ if ($method === 'POST') {
   $title = trim($input['title'] ?? '');
   $body = trim($input['body'] ?? '');
   $time = $input['time'] ?? date('Y-m-d H:i');
+  $prescriptionId = isset($input['prescription_id']) ? (int)$input['prescription_id'] : null;
   $role = isset($_GET['role']) ? strtolower((string)$_GET['role']) : '';
   // Prefer doctor_id from GET, else payload
   $doctorId = isset($_GET['doctor_id']) ? (int)$_GET['doctor_id'] : (int)($input['doctor_id'] ?? 0);
@@ -210,7 +211,8 @@ if ($method === 'POST') {
     'body' => $body,
     'time' => $time,
     'read' => false,
-    'status' => 'new'
+    'status' => 'new',
+    'prescription_id' => $prescriptionId
   ];
   $items[] = $new;
   save_store($rf, $items);
@@ -257,8 +259,14 @@ if ($method === 'PUT') {
   // Attempt to sync status to prescription table if we can parse a prescription ID from the body
   try {
     $pdo = get_pdo();
-    $body = $items[$idx]['body'] ?? '';
-    $pid = parse_prescription_id_from_body($body);
+    $pid = null;
+    if (isset($items[$idx]['prescription_id'])) {
+      $pid = (int)$items[$idx]['prescription_id'];
+    }
+    if (!$pid) {
+      $body = $items[$idx]['body'] ?? '';
+      $pid = parse_prescription_id_from_body($body);
+    }
     if ($pid !== null && $pid > 0) {
       $stmt = $pdo->prepare('UPDATE prescription SET status = :status WHERE id = :id');
       $stmt->execute([

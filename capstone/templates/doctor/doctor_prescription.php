@@ -84,9 +84,11 @@ window.addEventListener('DOMContentLoaded', function(){
       }
       var body = parts.join(' | ');
 
-      // Notify pharmacy
+      // Notify pharmacy, include prescription_id so backend can update DB status
       var notifRes = await fetch('/capstone/notifications/pharmacy.php',{
-        method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ title:title, body:body })
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ title:title, body:body, prescription_id: prescriptionId })
       });
       
       if(!notifRes.ok){ 
