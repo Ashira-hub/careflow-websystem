@@ -81,13 +81,13 @@ if ($method === 'GET') {
       . ', ' . ($hasNurseId? 'nurse_id' : 'NULL::int as nurse_id')
       . ', ' . ($hasNurseEmail? 'nurse_email' : "''::text as nurse_email")
       . ', ' . ($hasCreatedBy ? 'created_by_user_id' : 'NULL::int as created_by_user_id')
-      . ', ' . ($colDate ? 'to_char("'.$colDate.'",\'YYYY-MM-DD\') as date' : "'' as date")
+      . ', ' . ($colDate ? '"'.$colDate.'" as date' : "'' as date")
       . ', ' . ($colShift ? $colShift.' as shift' : "'' as shift")
       . ', ' . ($colWard ? $colWard.' as ward' : "'' as ward")
       . ', ' . ($colNotes ? $colNotes.' as notes' : "'' as notes")
       . ', ' . ($colStatus ? $colStatus.' as status' : "'request' as status")
-      . ', ' . ($colStart ? 'to_char("'.$colStart.'",\'HH24:MI\') as start_time' : "'' as start_time")
-      . ', ' . ($colEnd ? 'to_char("'.$colEnd.'",\'HH24:MI\') as end_time' : "'' as end_time")
+      . ', ' . ($colStart ? '"'.$colStart.'" as start_time' : "'' as start_time")
+      . ', ' . ($colEnd ? '"'.$colEnd.'" as end_time' : "'' as end_time")
       . ', ' . ($hasCreatedAt ? 'created_at' : 'now() as created_at')
       . ', ' . ($hasUpdatedAt ? 'updated_at' : 'now() as updated_at');
     $base = 'SELECT ' . $cols . ' FROM schedules';
@@ -231,13 +231,13 @@ if ($method === 'PUT') {
       . ', ' . ($hasNurseId? 'nurse_id' : 'NULL::int as nurse_id')
       . ', ' . ($hasNurseEmail? 'nurse_email' : "''::text as nurse_email")
       . ', ' . ($hasCreatedBy ? 'created_by_user_id' : 'NULL::int as created_by_user_id')
-      . ', ' . ($colDate ? 'to_char("'.$colDate.'",\'YYYY-MM-DD\') as date' : "'' as date")
+      . ', ' . ($colDate ? '"'.$colDate.'" as date' : "'' as date")
       . ', ' . ($colShift ? $colShift.' as shift' : "'' as shift")
       . ', ' . ($colWard ? $colWard.' as ward' : "'' as ward")
       . ', ' . ($colNotes ? $colNotes.' as notes' : "'' as notes")
       . ', ' . ($colStatus ? $colStatus.' as status' : "'request' as status")
-      . ', ' . ($colStart ? 'to_char("'.$colStart.'",\'HH24:MI\') as start_time' : "'' as start_time")
-      . ', ' . ($colEnd ? 'to_char("'.$colEnd.'",\'HH24:MI\') as end_time' : "'' as end_time")
+      . ', ' . ($colStart ? '"'.$colStart.'" as start_time' : "'' as start_time")
+      . ', ' . ($colEnd ? '"'.$colEnd.'" as end_time' : "'' as end_time")
       . ( $hasCreatedAt ? ', created_at' : '' )
       . ( $hasUpdatedAt ? ', updated_at' : '' );
 
