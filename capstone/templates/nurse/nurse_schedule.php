@@ -22,12 +22,23 @@
 
      // Keep only schedules that belong to the logged-in nurse
      $belongs = false;
+     // Exact nurse_id match when column exists
      if ($nurseId > 0 && $nurseIdVal === $nurseId) {
        $belongs = true;
-     } elseif ($nurseEmail !== '' && $nurseEmailV !== '' && $nurseEmailV === $nurseEmail) {
+     }
+     // Exact email match when column exists
+     elseif ($nurseEmail !== '' && $nurseEmailV !== '' && $nurseEmailV === $nurseEmail) {
        $belongs = true;
-     } elseif ($nurseName !== '' && $nurse !== '' && $nurse === $nurseName) {
-       $belongs = true;
+     }
+     // Fallback to name matching (case-insensitive, trimmed, and allowing partial match)
+     else {
+       $a = trim(mb_strtolower($nurseName));
+       $b = trim(mb_strtolower($nurse));
+       if ($a !== '' && $b !== '') {
+         if ($a === $b || strpos($a, $b) !== false || strpos($b, $a) !== false) {
+           $belongs = true;
+         }
+       }
      }
      if (!$belongs) {
        continue;
