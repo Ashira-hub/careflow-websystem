@@ -402,7 +402,7 @@
       }
 
       function statusBadge(status){
-        var s = (status || 'request').toLowerCase();
+        var s = (status == null ? 'request' : String(status)).trim().toLowerCase();
         var color = '#f59e0b';
         var label = 'PENDING';
         if(s === 'accepted'){ color = '#10b981'; label = 'ACCEPTED'; }
