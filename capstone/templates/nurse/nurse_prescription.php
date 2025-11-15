@@ -290,8 +290,7 @@ try {
       var patient = fields.patient.textContent || 'Unknown Patient';
       var medicine = fields.medicine.textContent || 'Unknown Medicine';
       var nurseName = <?php echo json_encode($_SESSION['user']['name'] ?? 'Nurse'); ?>;
-      
-      // Send notification to doctor
+      // Send notification to doctor only (do not reflect in pharmacy prescription list)
       var doctorNotification = {
         title: 'Prescription Acknowledged by Nurse',
         body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Acknowledged',
@@ -321,8 +320,7 @@ try {
       var patient = fields.patient.textContent || 'Unknown Patient';
       var medicine = fields.medicine.textContent || 'Unknown Medicine';
       var nurseName = <?php echo json_encode($_SESSION['user']['name'] ?? 'Nurse'); ?>;
-
-      // Notify doctor as well
+      // Notify doctor only (do not reflect in pharmacy prescription list)
       var doctorNotification = {
         title: 'Prescription administered by Nurse',
         body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Done',
