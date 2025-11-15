@@ -6,8 +6,7 @@ include __DIR__.'/includes/header.php'; ?>
     <div class="hero-copy">
       <p class="eyebrow">World Mental Health</p>
       <h1>Your Health is Our Top Priority</h1>
-      <p class="lead">Providing exceptional healthcare services with compassion and expertise. Our team of dedicated professionals is here to serve you 24/7.</p>
-      <div class="hero-cta">
+      <p class="lead">Always here, always caring quality healthcare you can rely on.
         <a class="btn btn-primary" href="/capstone/about.php">Learn more</a>
         <a class="btn btn-ghost" href="/capstone/contact.php">Contact us</a>
       </div>
