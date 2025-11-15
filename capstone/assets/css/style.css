@@ -1,0 +1,213 @@
+/* Basic reset and tokens */
+:root{--brand:#2ecc71;--brand-700:#1e8e52;--text:#0f172a;--muted:#64748b;--bg:#f8fafc;--card:#ffffff;--ring:rgba(46,204,113,.35)}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,'Noto Sans',sans-serif;color:var(--text);background:var(--bg)}
+img{max-width:100%;display:block;border-radius:12px}
+a{color:inherit;text-decoration:none}
+/* Sticky footer layout so short pages (e.g., login) have footer at bottom */
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; min-height: 100%; }
+main { flex: 1 0 auto; }
+
+/* Layout helpers */
+.container{width:min(1120px,92%);margin:0 auto}
+.container.narrow{width:min(840px,92%)}
+main{display:block}
+
+/* Header */
+.site-header{position:sticky;top:0;background:#ffffffbd;backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid #e2e8f0;z-index:10}
+.nav{display:flex;align-items:center;justify-content:space-between;height:72px;gap:16px}
+.actions{display:flex;align-items:center;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;}
+.brand img{height:100px;width:auto;display:block}
+.logo-mark{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--brand);color:#fff;font-weight:800}
+.brand-text{color:#0ea763}
+.menu{display:flex;gap:22px;list-style:none;margin:0;padding:0}
+.menu a{padding:10px 6px;border-radius:8px;color:#0f172a}
+.menu a.active,.menu a:hover{color:var(--brand-700)}
+.actions .btn{margin-left:10px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:12px;font-weight:600;border:1px solid #cbd5e1;transition:.2s box-shadow,.2s transform,.2s background}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary{background:var(--brand);color:#fff;border-color:transparent;box-shadow:0 10px 20px -10px var(--ring)}
+.btn-primary:hover{background:var(--brand-700)}
+.btn-outline{background:#fff;color:var(--brand-700);border-color:var(--brand-700)}
+.btn-ghost{background:transparent;color:var(--text);border-color:transparent}
+
+/* Hero */
+.hero{padding:56px 0 20px;background:linear-gradient(180deg,#f0fff7,transparent 60%)}
+.hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
+.eyebrow{letter-spacing:.2em;color:var(--muted);text-transform:uppercase;font-weight:700;font-size:.8rem}
+h1{font-size:clamp(28px,5vw,44px);line-height:1.1;margin:10px 0 12px;color:#0a5d39}
+.lead{color:var(--muted);font-size:1.05rem}
+.hero-cta{display:flex;gap:12px;margin-top:18px}
+.hero-art img{border-radius:18px}
+
+/* About preview */
+.section-head h2{margin:0 0 14px}
+.about-preview{padding:40px 0 64px}
+.about-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:center}
+.checks{list-style:none;padding:0;margin:16px 0 0}
+.checks li{position:relative;padding-left:28px;margin:8px 0}
+.checks li:before{content:"✔";position:absolute;left:0;top:0;color:var(--brand-700)}
+
+/* Cards, forms */
+.card{background:var(--card);border:1px solid #e2e8f0;border-radius:16px;padding:22px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-field{display:flex;flex-direction:column;margin:10px 0}
+label{font-weight:600;margin-bottom:6px}
+input,textarea,select{display:block;width:100%;padding:12px 14px;border-radius:10px;border:1px solid #cbd5e1;font:inherit;background:#fff}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--ring);border-color:var(--brand)}
+select{appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:linear-gradient(45deg,transparent 50%, #64748b 50%),linear-gradient(135deg, #64748b 50%, transparent 50%);background-position:calc(100% - 18px) 50%, calc(100% - 12px) 50%;background-size:6px 6px, 6px 6px;background-repeat:no-repeat;padding-right:36px}
+
+/* Auth */
+.auth-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;padding:46px 0}
+.auth-copy h1{margin:0 0 8px}
+.muted{color:var(--muted)}
+.small{font-size:.9rem}
+
+/* Auth stacked variant (used on login page) */
+.auth-grid.stack{grid-template-columns:1fr;justify-items:center}
+.auth-grid.stack .auth-copy{text-align:center}
+
+/* Nurse report navigation */
+.report-nav{display:flex;align-items:center;gap:14px}
+.report-nav-btn{padding:6px 10px;display:flex;align-items:center;justify-content:center;border-radius:10px}
+.report-nav-icon{font-size:18px;color:#0a5d39;line-height:1}
+.report-nav-label-group{display:flex;align-items:center;gap:12px;color:#0a5d39;font-weight:600}
+.report-nav-month{font-size:1.05rem}
+.report-nav-year{display:flex;align-items:center;gap:8px;font-size:1.05rem}
+.auth-grid.stack form{width:100%;max-width:460px}
+
+/* Utilities */
+.btn.center{display:block;margin:8px auto 0}
+.alert{border:1px solid #fecaca;background:#fef2f2;color:#991b1b;padding:12px 14px;border-radius:10px;margin:8px 0;font-weight:600}
+.alert-error{border-color:#fecaca;background:#fef2f2;color:#991b1b}
+
+/* Centered auth variant (used on login) */
+.auth-centered{display:flex;flex-direction:column;align-items:center;gap:26px;padding:46px 0}
+.auth-centered .auth-copy{text-align:center}
+.auth-centered .card{width:100%;max-width:520px}
+.auth-centered .card .btn{display:block;margin:10px auto 0}
+
+/* Page hero */
+.page-hero{padding:44px 0 10px;background:linear-gradient(180deg,#f0fff7,transparent 70%)}
+
+/* Footer */
+.site-footer{border-top:1px solid #e2e8f0;margin-top:40px;background:#fff}
+.footer{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px 0;text-align:center}
+.foot-brand{margin-bottom:8px}
+
+/* Responsive */
+@media (max-width: 900px){
+  .hero-grid,.about-grid,.auth-grid{grid-template-columns:1fr}
+  .grid-2{grid-template-columns:1fr}
+}
+
+/* Dashboard */
+.dashboard-hero{padding:24px 0 8px}
+.dashboard-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:16px 0 28px}
+.stat-card{display:flex;flex-direction:column;gap:6px}
+.stat-title{color:var(--muted);font-size:.9rem}
+.stat-value{font-size:1.8rem;font-weight:700;color:#0a5d39}
+.two-col{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+.card table{width:100%;border-collapse:collapse}
+.card table th,.card table td{padding:10px 8px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:.95rem}
+.badge{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#eef9f2;color:#0a5d39;border:1px solid #cdebd8;font-size:.8rem;font-weight:600}
+@media (max-width: 1000px){.dashboard-grid{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}}
+
+/* Dashboard with sidebar */
+.layout-sidebar{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;min-height:calc(100vh - 72px)}
+/* Ensure equal gap between header<->sidebar and footer<->sidebar
+   Header .nav height = 72px; page vertical padding = 24px (inline on some pages)
+   So sticky top = 72 + 24; bottom gap = 24 via height calc
+*/
+.sidebar{position:sticky;top:calc(72px + 24px);height:calc(100vh - (72px + 24px) - 24px);overflow-y:auto}
+.sidepanel{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:10px;box-shadow:0 6px 20px rgba(2,6,23,.06);height:100%;display:flex;flex-direction:column}
+.sidebar .nav-list{list-style:none;margin:0;padding:0;flex:1}
+.sidebar .nav-list li{margin-bottom:4px}
+.sidebar .nav-list li a{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;color:#0f172a;border:1px solid transparent;transition:all 0.2s ease;font-weight:500}
+.sidebar .nav-list li a:hover{background:#f1f5f9;transform:translateX(2px)}
+.sidebar .nav-list li a.active{background:#e8fff1;border-color:#b8f0cf;color:#0a5d39;font-weight:700;box-shadow:0 2px 8px rgba(46,204,113,0.15)}
+.sidebar .nav-list .icon{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:0;background:transparent;color:#0a5d39;font-weight:700}
+/* Ensure sidebar IMG icons are not rounded or clipped by the global img rule */
+.sidebar .nav-list img{border-radius:0 !important;}
+
+/* Dashboard headings and cards */
+.dashboard-title{color:#0a5d39;margin:6px 0 10px}
+.stat-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:10px 0 20px}
+.stat-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;box-shadow:0 6px 20px rgba(2,6,23,.06)}
+.stat-card h4{margin:0 0 6px;color:#0a5d39}
+.muted-small{color:#64748b;font-size:.9rem}
+.recent{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 6px 20px rgba(2,6,23,.06)}
+
+@media (max-width: 1100px){.stat-cards{grid-template-columns:repeat(2,1fr)}}
+
+/* Profile page */
+.profile-header{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;box-shadow:0 6px 20px rgba(2,6,23,.06);margin-bottom:14px}
+.profile-left{display:flex;align-items:center;gap:14px}
+.avatar{width:54px;height:54px;border-radius:999px;background:#eafff3;display:inline-grid;place-items:center;color:#0a5d39;font-weight:700}
+.profile-name{margin:0;font-weight:800;color:#0a5d39;font-size:1.4rem}
+.profile-role{margin:0;color:#64748b;font-weight:600}
+.profile-email{color:#64748b}
+.profile-section-title{color:#0a5d39;font-weight:800;margin:12px 0 8px}
+.info-table{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;box-shadow:0 6px 20px rgba(2,6,23,.06)}
+.info-row{display:grid;grid-template-columns:260px 1fr;border-top:1px solid #e2e8f0}
+.info-row:first-child{border-top:none}
+.info-cell{padding:12px 14px}
+.info-label{background:#f8fafc;font-weight:700;color:#0a5d39}
+.info-value{color:#0f172a}
+
+/* Full-bleed utility for edge-to-edge layout */
+.full-bleed{width:100%;max-width:none;margin:0;padding:0}
+
+/* Activity Feed Styles */
+.activity-feed{display:flex;flex-direction:column;gap:12px;}
+.activity-loading{display:flex;align-items:center;gap:12px;padding:16px;justify-content:center;}
+.loading-spinner{width:20px;height:20px;border:2px solid #e2e8f0;border-top:2px solid #0a5d39;border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.activity-empty{padding:24px;text-align:center;}
+.activity-item{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:12px;background:#fafbfc;border:1px solid #f1f5f9;transition:all 0.2s ease;animation:fadeInUp 0.4s ease forwards;opacity:0;transform:translateY(10px);}
+.activity-item:hover{background:#f8fafc;border-color:#e2e8f0;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.05);}
+@keyframes fadeInUp{to{opacity:1;transform:translateY(0);}}
+.activity-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.activity-content{flex:1;min-width:0;}
+.activity-title{font-weight:600;color:#0f172a;margin-bottom:4px;font-size:0.95rem;}
+.activity-meta{color:#64748b;font-size:0.85rem;margin-bottom:2px;font-weight:500;}
+.activity-body{color:#64748b;font-size:0.9rem;line-height:1.4;}
+.activity-time{display:flex;align-items:center;justify-content:center;width:20px;flex-shrink:0;}
+
+/* Appointment calendar */
+.appt-layout{display:grid;grid-template-columns:1.6fr .8fr;gap:18px}
+.calendar-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 6px 20px rgba(2,6,23,.06);padding:16px}
+.calendar-title{color:#0a5d39;text-align:center;font-weight:800;letter-spacing:.06em}
+.calendar-header{display:flex;align-items:center;justify-content:space-between;margin:8px 0 12px}
+.month-name{font-size:1.4rem;font-weight:800;color:#0f172a}
+.month-nav{display:flex;gap:8px}
+.month-nav .btn{border:1px solid #cdebd8;background:#eafff3;color:#0a5d39;padding:6px 10px;border-radius:10px;font-weight:700}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.calendar-cell{height:74px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;display:flex;align-items:flex-start;justify-content:flex-end;padding:6px;color:#0f172a}
+.calendar-cell.muted{background:#f8fafc;color:#94a3b8}
+.calendar-dot{width:6px;height:6px;border-radius:999px;background:#0a5d39;margin-top:auto;margin-left:auto}
+/* Active day highlight */
+.calendar-cell.active{background:#eafff3;border-color:#b8f0cf;color:#0a5d39;font-weight:800;box-shadow:inset 0 0 0 2px #cdebd8}
+
+/* Appointment list */
+.appt-list{background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 6px 20px rgba(2,6,23,.06);padding:12px}
+.appt-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.appt-list h3{margin:0;color:#0a5d39}
+.appt-item{display:flex;gap:12px;align-items:center;padding:10px 6px;border-top:1px solid #e2e8f0}
+.appt-item:first-child{border-top:none}
+.appt-date{display:grid;place-items:center;border:1px solid #e2e8f0;border-radius:10px;padding:6px 8px;color:#0a5d39;font-weight:800;width:56px}
+.appt-meta{flex:1}
+.btn-ghost{background:transparent;border:1px solid #e2e8f0;border-radius:10px}
+
+/* Prescription page */
+.rx-layout{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+.rx-form{background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 6px 20px rgba(2,6,23,.06);padding:16px}
+.rx-form h3{margin-top:0;color:#0a5d39}
+.rx-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
+.rx-list{background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 6px 20px rgba(2,6,23,.06);padding:12px}
+.rx-item{padding:10px 6px;border-top:1px solid #e2e8f0}
+.rx-item:first-child{border-top:none}

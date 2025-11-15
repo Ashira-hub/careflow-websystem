@@ -1,0 +1,72 @@
+[
+    {
+        "notification_id": 5,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: June | Medicine: Melformin 500mg | Qty: 6 | diabetic",
+        "patient": "June",
+        "medicine": "Melformin 500mg",
+        "dose": "",
+        "route": "",
+        "frequency": "",
+        "notes": "Qty: 6 diabetic",
+        "status": "done",
+        "time": "2025-10-23 17:43",
+        "updated_at": "2025-10-24 05:00"
+    },
+    {
+        "notification_id": 10,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: June | Medicine: Nail cutter 500mg | Qty: 1 | Nail Cancer",
+        "patient": "June",
+        "medicine": "Nail cutter 500mg",
+        "dose": "",
+        "route": "",
+        "frequency": "",
+        "notes": "Qty: 1 Nail Cancer",
+        "status": "done",
+        "time": "2025-10-24 05:10",
+        "updated_at": "2025-10-24 11:08"
+    },
+    {
+        "notification_id": 12,
+        "title": "Prescription administered by Nurse",
+        "body": "Patient: June | Medicine: Nail cutter 500mg | Qty: 1 | Nail Cancer",
+        "patient": "June",
+        "medicine": "Nail cutter 500mg",
+        "dose": "",
+        "route": "",
+        "frequency": "",
+        "notes": "Qty: 1 Nail Cancer",
+        "status": "accepted",
+        "time": "2025-10-24 11:08",
+        "updated_at": "2025-10-26 04:02"
+    },
+    {
+        "notification_id": 14,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Shinra | Medicine: Biogesic 500mg | Qty: 4 | Fever",
+        "patient": "Shinra",
+        "medicine": "Biogesic 500mg",
+        "dose": "",
+        "route": "",
+        "frequency": "",
+        "notes": "Qty: 4 Fever",
+        "status": "dispensed",
+        "time": "2025-10-26 13:48",
+        "updated_at": "2025-11-07 21:20"
+    },
+    {
+        "notification_id": 19,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Mayonaie | Medicine: Biogesic 500mg | Qty: 4 | Fever",
+        "patient": "Mayonaie",
+        "medicine": "Biogesic 500mg",
+        "dose": "",
+        "route": "",
+        "frequency": "",
+        "notes": "Qty: 4 Fever",
+        "status": "dispensed",
+        "time": "2025-11-14 05:23",
+        "updated_at": "2025-11-14 15:44"
+    }
+]

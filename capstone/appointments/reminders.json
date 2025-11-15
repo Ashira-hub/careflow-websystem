@@ -1,0 +1,57 @@
+[
+    {
+        "id": 1,
+        "appointment_id": 101,
+        "patient": "Ashira",
+        "date": "2025-11-09",
+        "time": "12:15:00",
+        "role": "doctor",
+        "offset_minutes": 1,
+        "remind_at": "2025-11-09 12:32",
+        "sent": true
+    },
+    {
+        "id": 2,
+        "appointment_id": 101,
+        "patient": "Ashira",
+        "date": "2025-11-09",
+        "time": "20:55:00",
+        "role": "doctor",
+        "offset_minutes": 1,
+        "remind_at": "2025-11-09 20:54",
+        "sent": true
+    },
+    {
+        "id": 3,
+        "appointment_id": 102,
+        "patient": "Glazier",
+        "date": "2025-11-09",
+        "time": "21:20",
+        "role": "doctor",
+        "offset_minutes": 3,
+        "remind_at": "2025-11-09 21:17",
+        "sent": true
+    },
+    {
+        "id": 4,
+        "appointment_id": 103,
+        "patient": "Mayonaie",
+        "date": "2025-11-09",
+        "time": "22:25",
+        "role": "doctor",
+        "offset_minutes": 3,
+        "remind_at": "2025-11-09 22:22",
+        "sent": true
+    },
+    {
+        "id": 5,
+        "appointment_id": 104,
+        "patient": "Shione",
+        "date": "2025-11-09",
+        "time": "22:30",
+        "role": "doctor",
+        "offset_minutes": 1,
+        "remind_at": "2025-11-09 22:29",
+        "sent": true
+    }
+]

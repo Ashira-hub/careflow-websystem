@@ -1,0 +1,26 @@
+[
+    {
+        "id": 1,
+        "title": "Prescription accepted by Pharmacy",
+        "body": "Patient: Shinra | Medicine: Biogesic 500mg | Qty: 4 | Fever",
+        "time": "2025-11-07 21:20",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 2,
+        "title": "Appointment reminder",
+        "body": "Reminder: Shione appointment on 2025-11-09 22:30",
+        "time": "2025-11-09 22:29",
+        "read": true,
+        "status": "new"
+    },
+    {
+        "id": 3,
+        "title": "Prescription accepted by Pharmacy",
+        "body": "Patient: Mayonaie | Medicine: Biogesic 500mg | Qty: 4 | Fever",
+        "time": "2025-11-14 15:44",
+        "read": false,
+        "status": "new"
+    }
+]

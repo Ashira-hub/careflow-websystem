@@ -1,0 +1,34 @@
+[
+    {
+        "id": 12,
+        "title": "Schedule request accepted by Supervisor",
+        "body": "Nurse submitted a schedule request | Shift: Morning Shift | Date: 2025-11-12 | Station: Ward G | Start Time: 10:45 | End Time: 22:45 | Notes: Nothing.",
+        "time": "2025-11-11 15:47",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 13,
+        "title": "Schedule request accepted by Supervisor",
+        "body": "Nurse submitted a schedule request | Shift: Morning Shift | Date: 2025-11-25 | Station: Ward A | Start Time: 01:08 | End Time: 13:08 | Notes: dsf",
+        "time": "2025-11-11 18:09",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 14,
+        "title": "Prescription accepted by Pharmacy",
+        "body": "Patient: Mayonaie | Medicine: Biogesic 500mg | Qty: 4 | Fever",
+        "time": "2025-11-14 15:44",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 15,
+        "title": "Schedule request accepted by Supervisor",
+        "body": "Nurse submitted a schedule request | Shift: Morning Shift | Date: 2025-11-13 | Station: Ward A | Start Time: 04:39 | End Time: 16:39",
+        "time": "2025-11-14 21:59",
+        "read": false,
+        "status": "new"
+    }
+]

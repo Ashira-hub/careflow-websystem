@@ -1,0 +1,154 @@
+[
+    {
+        "id": 1,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Jessa Bigcas | Medicine: Melformin 500mg | Qty: 1 | Diabetic",
+        "time": "2025-10-23 11:06",
+        "read": true,
+        "status": "accepted"
+    },
+    {
+        "id": 2,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Maymay | Medicine: Melformin 500mg | Qty: 1 | Diabetic",
+        "time": "2025-10-23 11:25",
+        "read": true,
+        "status": "dispensed"
+    },
+    {
+        "id": 3,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Jessa Bigcas | Medicine: Melformin 500mg | Qty: 1 | diabetic",
+        "time": "2025-10-23 11:43",
+        "read": true,
+        "status": "accepted"
+    },
+    {
+        "id": 4,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Maymay | Medicine: Melformin 500 | Qty: 2 | Diabetic",
+        "time": "2025-10-23 11:46",
+        "read": true,
+        "status": "accepted"
+    },
+    {
+        "id": 5,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: June | Medicine: Melformin 500mg | Qty: 6 | diabetic",
+        "time": "2025-10-23 17:43",
+        "read": true,
+        "status": "done"
+    },
+    {
+        "id": 6,
+        "title": "Prescription acknowledged by Nursing",
+        "body": "Patient: June | Medicine: Melformin 500mg | Qty: 6 | diabetic",
+        "time": "2025-10-24 04:52",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 7,
+        "title": "Prescription administered by Nurse",
+        "body": "Patient: June | Medicine: Melformin 500mg | Qty: 6 | diabetic",
+        "time": "2025-10-24 05:00",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 8,
+        "title": "Prescription administered by Nurse",
+        "body": "Patient: June | Medicine: Melformin 500mg | Qty: 6 | diabetic",
+        "time": "2025-10-24 05:00",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 9,
+        "title": "Prescription administered by Nurse",
+        "body": "Patient: June | Medicine: Melformin 500mg | Qty: 6 | diabetic",
+        "time": "2025-10-24 05:00",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 10,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: June | Medicine: Nail cutter 500mg | Qty: 1 | Nail Cancer",
+        "time": "2025-10-24 05:10",
+        "read": true,
+        "status": "done"
+    },
+    {
+        "id": 11,
+        "title": "Prescription acknowledged by Nurse",
+        "body": "Patient: June | Medicine: Nail cutter 500mg | Qty: 1 | Nail Cancer",
+        "time": "2025-10-24 05:12",
+        "read": true,
+        "status": "new"
+    },
+    {
+        "id": 12,
+        "title": "Prescription administered by Nurse",
+        "body": "Patient: June | Medicine: Nail cutter 500mg | Qty: 1 | Nail Cancer",
+        "time": "2025-10-24 11:08",
+        "read": true,
+        "status": "accepted"
+    },
+    {
+        "id": 13,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Shinra | Medicine: Paracetamol 500mg | Qty: 8 | High Fever",
+        "time": "2025-10-26 13:37",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 14,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Shinra | Medicine: Biogesic 500mg | Qty: 4 | Fever",
+        "time": "2025-10-26 13:48",
+        "read": true,
+        "status": "dispensed"
+    },
+    {
+        "id": 15,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Maymay | Medicine: Paracetamol 500mg | Qty: 4 | Fever",
+        "time": "2025-11-09 04:12",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 16,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Maymay Capadiso | Medicine: Biogesic 500mg | Qty: 4 | Fever",
+        "time": "2025-11-09 04:47",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 17,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Glazier | Medicine: Biogesic 500mg | Qty: 8 | High Fever",
+        "time": "2025-11-09 15:55",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 18,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Shione | Medicine: Paracetamol 500mg | Qty: 4 | Mild Fever",
+        "time": "2025-11-09 17:29",
+        "read": false,
+        "status": "new"
+    },
+    {
+        "id": 19,
+        "title": "New prescription from Kiervy Estole",
+        "body": "Patient: Mayonaie | Medicine: Biogesic 500mg | Qty: 4 | Fever",
+        "time": "2025-11-14 05:23",
+        "read": true,
+        "status": "dispensed"
+    }
+]
