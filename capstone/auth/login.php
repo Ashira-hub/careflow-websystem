@@ -81,6 +81,32 @@ try {
   ];
   $_SESSION['flash_welcome'] = 'Welcome back, ' . ($user['full_name'] ?? '');
 
+  if ($user['role'] === 'labstaff') {
+    $storeDir = __DIR__ . '/../data';
+    if (!is_dir($storeDir)) { @mkdir($storeDir, 0777, true); }
+    $storeFile = $storeDir . '/notifications_laboratory.json';
+    if (!file_exists($storeFile)) { @file_put_contents($storeFile, json_encode([])); }
+    $raw = @file_get_contents($storeFile);
+    $items = $raw ? json_decode($raw, true) : [];
+    if (!is_array($items)) { $items = []; }
+    $nextId = 1;
+    if (!empty($items)) {
+      $ids = array_column($items, 'id');
+      $nextId = max($ids) + 1;
+    }
+    $title = 'Laboratory login';
+    $body = 'Laboratory user ' . ($user['full_name'] ?? '') . ' logged in.';
+    $items[] = [
+      'id' => $nextId,
+      'title' => $title,
+      'body' => $body,
+      'time' => date('Y-m-d H:i'),
+      'read' => false,
+      'status' => 'new'
+    ];
+    @file_put_contents($storeFile, json_encode($items, JSON_PRETTY_PRINT));
+  }
+
   switch ($user['role']) {
     case 'doctor':
       $dest = '/capstone/templates/doctor/doctor_dashboard.php'; break;
