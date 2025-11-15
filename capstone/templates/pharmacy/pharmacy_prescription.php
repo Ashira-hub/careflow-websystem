@@ -307,9 +307,15 @@
   });
   async function putStatus(id, status){
     var res = await fetch('/capstone/notifications/pharmacy.php?id='+encodeURIComponent(id),{
-      method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ status: status, read: true })
+      method:'PUT',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ status: status, read: true })
     });
-    if(!res.ok){ throw new Error('Failed to update'); }
+    if(!res.ok){
+      var text = '';
+      try { text = await res.text(); } catch (e) { text = ''; }
+      throw new Error(text || 'Failed to update');
+    }
     return res.json();
   }
   async function handleStatus(newStatus){
