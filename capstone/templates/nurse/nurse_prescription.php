@@ -29,11 +29,20 @@ function np_status_badge($status){
 $ready = [];
 try {
   $pdo = get_pdo();
-  $sql = "SELECT id, doctor_name, patient_name, medicine, quantity, dosage_strength, description, status, created_at
+  $sql = "SELECT id, doctor_name, patient_name, medicine, quantity, dosage_strength, description, status, created_at, created_by_user_id
           FROM prescription
           WHERE lower(status) = 'accepted'
           ORDER BY created_at DESC";
-  $stmt = $pdo->query($sql);
+  try {
+    $stmt = $pdo->query($sql);
+  } catch (Throwable $e) {
+    // Fallback for older schema without created_by_user_id
+    $sql = "SELECT id, doctor_name, patient_name, medicine, quantity, dosage_strength, description, status, created_at
+            FROM prescription
+            WHERE lower(status) = 'accepted'
+            ORDER BY created_at DESC";
+    $stmt = $pdo->query($sql);
+  }
   foreach ($stmt as $row) {
     $ready[] = [
       'notification_id' => (int)($row['id'] ?? 0),
@@ -43,6 +52,7 @@ try {
       'notes'           => (string)($row['description'] ?? ''),
       'status'          => (string)($row['status'] ?? 'accepted'),
       'updated_at'      => (string)($row['created_at'] ?? ''),
+      'doctor_id'       => isset($row['created_by_user_id']) ? (int)$row['created_by_user_id'] : 0,
     ];
   }
 } catch (Throwable $e) {
@@ -132,7 +142,8 @@ try {
                   data-quantity="<?php echo np_escape($r['quantity'] ?? ''); ?>"
                   data-notes="<?php echo np_escape($r['notes'] ?? ''); ?>"
                   data-status="<?php echo np_escape($r['status'] ?? ''); ?>"
-                  data-updated="<?php echo np_escape($r['updated_at'] ?? $r['time'] ?? ''); ?>">
+                  data-updated="<?php echo np_escape($r['updated_at'] ?? $r['time'] ?? ''); ?>"
+                  data-doctor-id="<?php echo isset($r['doctor_id']) ? (int)$r['doctor_id'] : 0; ?>">
                   Load
                 </button>
               </div>
@@ -165,6 +176,7 @@ try {
   var doneBtn = document.getElementById('rxDoneBtn');
   var currentId = null;
   var currentStatus = null;
+  var currentDoctorId = null;
   var refreshBtn = document.getElementById('rxRefreshBtn');
   var listBody = document.getElementById('rxListBody');
   var loadingOv = document.getElementById('rxLoadingOverlay');
@@ -206,6 +218,7 @@ try {
   Array.prototype.forEach.call(document.querySelectorAll('.load-ready'), function(btn){
     btn.addEventListener('click', function(){
       currentId = parseInt(this.dataset.id || '0', 10) || null;
+      currentDoctorId = this.dataset.doctorId ? parseInt(this.dataset.doctorId, 10) || null : null;
       renderDetail({
         patient: this.dataset.patient,
         medicine: this.dataset.med,
@@ -279,8 +292,11 @@ try {
         body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Acknowledged',
         status: 'pending'
       };
-      
-      var doctorRes = await fetch('/capstone/notifications/pharmacy.php?role=doctor', {
+      var doctorUrl = '/capstone/notifications/pharmacy.php?role=doctor';
+      if(currentDoctorId){
+        doctorUrl += '&doctor_id=' + encodeURIComponent(currentDoctorId);
+      }
+      var doctorRes = await fetch(doctorUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(doctorNotification)
