@@ -47,6 +47,7 @@
     </div>
     <div style="display:flex;justify-content:flex-end;gap:12px;padding:20px 28px;border-top:1px solid #e5e7eb;background:linear-gradient(135deg,#f8fafc,#f1f5f9);">
       <button type="button" class="btn btn-outline" id="closeNotificationModalBtn" style="padding:10px 20px;border-radius:10px;font-weight:600;">Close</button>
+      <button type="button" class="btn btn-primary" id="acceptScheduleNotificationBtn" style="padding:10px 20px;border-radius:10px;font-weight:600;background:linear-gradient(135deg,#0a5d39,#10b981);display:none;">Accept</button>
       <button class="btn btn-primary" id="deleteNotificationBtn" style="padding:10px 20px;border-radius:10px;font-weight:600;background:linear-gradient(135deg,#ef4444,#dc2626);">Delete</button>
     </div>
   </div>
@@ -67,6 +68,7 @@
   var closeModalBtn = document.getElementById('closeNotificationModal');
   var closeModalBtn2 = document.getElementById('closeNotificationModalBtn');
   var deleteModalBtn = document.getElementById('deleteNotificationBtn');
+  var acceptModalBtn = document.getElementById('acceptScheduleNotificationBtn');
   var backdrop = modal ? modal.querySelector('[data-backdrop]') : null;
   var currentNotificationId = null;
 
@@ -124,6 +126,11 @@
       +  '<h4 style="margin:0 0 12px;color:#0f172a;font-size:1rem;font-weight:600;">Message Details</h4>'
       +  '<div style="color:#374151;line-height:1.6;font-size:0.95rem;">'+escapeHtml(notification.body)+'</div>'
       +'</div>';
+    // Show or hide Accept button based on presence of ScheduleID in body
+    if (acceptModalBtn) {
+      var hasScheduleId = /ScheduleID:\s*\d+/.test(notification.body || '');
+      acceptModalBtn.style.display = hasScheduleId ? '' : 'none';
+    }
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
     render();
@@ -177,6 +184,35 @@
   if(closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
   if(closeModalBtn2) closeModalBtn2.addEventListener('click', closeModal);
   if(backdrop) backdrop.addEventListener('click', closeModal);
+  if(acceptModalBtn){
+    acceptModalBtn.addEventListener('click', async function(){
+      if(!currentNotificationId) return;
+      var notification = notifications.find(function(n){ return n.id === currentNotificationId; });
+      if(!notification) return;
+      var body = notification.body || '';
+      var m = body.match(/ScheduleID:\s*(\d+)/);
+      if(!m){ alert('No ScheduleID found in this notification.'); return; }
+      var schedId = parseInt(m[1],10);
+      if(!schedId){ alert('Invalid ScheduleID.'); return; }
+      if(!confirm('Accept this schedule?')) return;
+      try{
+        var res = await fetch('/capstone/schedules/requests.php?id='+encodeURIComponent(schedId),{
+          method:'PUT',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ status: 'accepted' })
+        });
+        if(!res.ok){
+          var t = await res.text().catch(function(){ return ''; });
+          throw new Error(t || 'Failed to accept schedule');
+        }
+        alert('Schedule accepted. It will now appear in your Schedule page.');
+        closeModal();
+        load();
+      }catch(err){
+        alert(err.message);
+      }
+    });
+  }
   if(deleteModalBtn){
     deleteModalBtn.addEventListener('click', function(){
       if(currentNotificationId){

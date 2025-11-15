@@ -859,25 +859,68 @@ include __DIR__.'/../../includes/header.php';
       e.preventDefault();
       
       var formData = new FormData(newForm);
+      var nurseIdVal = formData.get('nurse');
+      var dateVal = formData.get('date');
+      var startTimeVal = formData.get('time');
+      var endTimeVal = formData.get('end_time');
+      var shiftVal = formData.get('shift');
+      var wardVal = formData.get('ward');
+      var notesVal = formData.get('notes');
+
       var data = {
-        nurse_id: formData.get('nurse'),
-        date: formData.get('date'),
-        time: formData.get('time'),
-        end_time: formData.get('end_time'),
-        shift: formData.get('shift'),
-        ward: formData.get('ward'),
-        notes: formData.get('notes'),
-        status: 'accepted' // New schedules are automatically accepted
+        nurse_id: nurseIdVal,
+        nurse: '', // will be populated on server from nurse_id if possible
+        date: dateVal,
+        // schedules/requests.php expects start_time/end_time
+        start_time: startTimeVal,
+        end_time: endTimeVal,
+        shift: shiftVal,
+        ward: wardVal,
+        notes: notesVal,
+        status: 'pending' // New schedules start as pending until nurse accepts
       };
       
       try {
-        var response = await fetch('/capstone/templates/supervisor/create_schedule.php', {
+        var response = await fetch('/capstone/schedules/requests.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
         
         if(response.ok) {
+          var respJson = await response.json().catch(function(){ return null; });
+          var scheduleId = respJson && (respJson.id || (respJson.item && respJson.item.id)) ? (respJson.id || respJson.item.id) : null;
+          // Try to notify nurse about this new schedule
+          try {
+            var nurseSelect = document.getElementById('schedule_nurse');
+            var nurseName = '';
+            if (nurseSelect && nurseSelect.options && nurseSelect.selectedIndex >= 0) {
+              nurseName = nurseSelect.options[nurseSelect.selectedIndex].textContent || '';
+            }
+            var bodyParts = [];
+            if (nurseName) bodyParts.push('Nurse: ' + nurseName);
+            if (shiftVal) bodyParts.push('Title: ' + shiftVal);
+            if (dateVal) bodyParts.push('Date: ' + dateVal);
+            if (startTimeVal || endTimeVal) bodyParts.push('Time: ' + (startTimeVal || '') + (endTimeVal ? (' - ' + endTimeVal) : ''));
+            if (wardVal) bodyParts.push('Station: ' + wardVal);
+            if (notesVal) bodyParts.push('Note: ' + notesVal);
+            if (scheduleId) bodyParts.push('ScheduleID: ' + scheduleId);
+
+            var notifPayload = {
+              title: 'New schedule assigned by Supervisor',
+              body: bodyParts.join(' | '),
+              status: 'pending'
+            };
+
+            await fetch('/capstone/notifications/pharmacy.php?role=nurse', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(notifPayload)
+            }).catch(function(){ /* ignore notification errors */ });
+          } catch (_err) {
+            // Notification failure should not block schedule creation
+          }
+
           alert('Schedule created successfully!');
           closeNew();
           window.location.reload();

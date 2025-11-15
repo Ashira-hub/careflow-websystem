@@ -45,6 +45,11 @@
      $notesVal = (string)($row['notes'] ?? ($row['note'] ?? ($row['remarks'] ?? ($row['description'] ?? ''))));
      $statusVal= strtolower((string)($row['status'] ?? ($row['state'] ?? 'request')));
 
+     // Only show schedules that are accepted/created, not pending/request
+     if (!in_array($statusVal, ['accepted','created'], true)) {
+       continue;
+     }
+
      $startRaw = (string)($row['start_time'] ?? ($row['start'] ?? ($row['time_start'] ?? ($row['from_time'] ?? ''))));
      $endRaw   = (string)($row['end_time'] ?? ($row['end'] ?? ($row['time_end'] ?? ($row['to_time'] ?? ''))));
 
