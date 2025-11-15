@@ -51,12 +51,6 @@ window.addEventListener('DOMContentLoaded', function(){
     }
     
     var title = 'New prescription from '+doctor;
-    var parts = [];
-    if(patient) parts.push('Patient: '+patient);
-    if(medicine) parts.push('Medicine: '+medicine+(dose? (' '+dose):''));
-    if(qty) parts.push('Qty: '+qty);
-    if(desc) parts.push(desc);
-    var body = parts.join(' | ');
     
     try{
       // Save prescription to database
@@ -77,7 +71,19 @@ window.addEventListener('DOMContentLoaded', function(){
         var dbError = await dbRes.text().catch(function(){return '';}); 
         throw new Error(dbError || 'Failed to save prescription'); 
       }
-      
+      var dbJson = await dbRes.json().catch(function(){ return null; });
+      var prescriptionId = dbJson && dbJson.data && dbJson.data.id ? dbJson.data.id : null;
+
+      var parts = [];
+      if(patient) parts.push('Patient: '+patient);
+      if(medicine) parts.push('Medicine: '+medicine+(dose? (' '+dose):''));
+      if(qty) parts.push('Qty: '+qty);
+      if(desc) parts.push(desc);
+      if(prescriptionId !== null && prescriptionId !== undefined){
+        parts.push('PrescriptionID: '+prescriptionId);
+      }
+      var body = parts.join(' | ');
+
       // Notify pharmacy
       var notifRes = await fetch('/capstone/notifications/pharmacy.php',{
         method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ title:title, body:body })

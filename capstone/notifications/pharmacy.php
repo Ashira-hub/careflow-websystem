@@ -1,6 +1,7 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 header('Content-Type: application/json');
+require_once __DIR__ . '/../config/db.php';
 
 $storeDir = __DIR__ . '/../data';
 $storeFile = $storeDir . '/notifications_pharmacy.json';
@@ -98,6 +99,23 @@ function parse_prescription_body($body){
   }
   $fields['notes'] = trim($fields['notes']);
   return $fields;
+}
+
+function parse_prescription_id_from_body($body){
+  if(!$body) return null;
+  $parts = preg_split('/\|/', $body);
+  foreach ($parts as $part) {
+    $part = trim((string)$part);
+    if ($part === '') continue;
+    $lower = strtolower($part);
+    if (strpos($lower, 'prescriptionid:') === 0 || strpos($lower, 'prescription_id:') === 0) {
+      $val = trim(substr($part, strpos($part, ':')+1));
+      if ($val !== '' && ctype_digit($val)) {
+        return (int)$val;
+      }
+    }
+  }
+  return null;
 }
 
 function upsert_nurse_prescription($dir, $notification){
@@ -235,6 +253,22 @@ if ($method === 'PUT') {
   save_store($storeFile, $items);
   // If accepted, notify doctor and nurse as well
   $statusNow = $items[$idx]['status'] ?? '';
+
+  // Attempt to sync status to prescription table if we can parse a prescription ID from the body
+  try {
+    $pdo = get_pdo();
+    $body = $items[$idx]['body'] ?? '';
+    $pid = parse_prescription_id_from_body($body);
+    if ($pid !== null && $pid > 0) {
+      $stmt = $pdo->prepare('UPDATE prescription SET status = :status WHERE id = :id');
+      $stmt->execute([
+        ':status' => $statusNow,
+        ':id' => $pid,
+      ]);
+    }
+  } catch (Throwable $e) {
+  }
+
   if ($statusNow === 'accepted') {
     $title = 'Prescription accepted by Pharmacy';
     $body  = $items[$idx]['body'] ?? ($items[$idx]['title'] ?? '');
