@@ -56,6 +56,11 @@
      $notesVal = (string)($row['notes'] ?? ($row['note'] ?? ($row['remarks'] ?? ($row['description'] ?? ''))));
      $statusVal= strtolower((string)($row['status'] ?? ($row['state'] ?? 'request')));
 
+     // Only keep schedules that are accepted
+     if ($statusVal !== 'accepted') {
+       continue;
+     }
+
      $startRaw = (string)($row['start_time'] ?? ($row['start'] ?? ($row['time_start'] ?? ($row['from_time'] ?? ''))));
      $endRaw   = (string)($row['end_time'] ?? ($row['end'] ?? ($row['time_end'] ?? ($row['to_time'] ?? ''))));
 
