@@ -291,19 +291,6 @@ try {
       var medicine = fields.medicine.textContent || 'Unknown Medicine';
       var nurseName = <?php echo json_encode($_SESSION['user']['name'] ?? 'Nurse'); ?>;
       
-      // Send notification to pharmacy
-      var pharmacyNotification = {
-        title: 'Prescription Acknowledged by Nurse',
-        body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Acknowledged',
-        status: 'pending'
-      };
-      
-      var pharmacyRes = await fetch('/capstone/notifications/pharmacy.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pharmacyNotification)
-      });
-      
       // Send notification to doctor
       var doctorNotification = {
         title: 'Prescription Acknowledged by Nurse',
@@ -320,8 +307,8 @@ try {
         body: JSON.stringify(doctorNotification)
       });
       
-      if(!(pharmacyRes.ok && doctorRes.ok)){
-        alert('Prescription acknowledged but failed to send some notifications.');
+      if(!doctorRes.ok){
+        alert('Prescription acknowledged but failed to notify doctor.');
       }
     }catch(err){
       console.error('Failed to send notifications:', err);
@@ -334,18 +321,6 @@ try {
       var patient = fields.patient.textContent || 'Unknown Patient';
       var medicine = fields.medicine.textContent || 'Unknown Medicine';
       var nurseName = <?php echo json_encode($_SESSION['user']['name'] ?? 'Nurse'); ?>;
-
-      // Notify pharmacy that prescription was administered
-      var pharmacyNotification = {
-        title: 'Prescription administered by Nurse',
-        body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Done',
-        status: 'pending'
-      };
-      var pharmacyRes = await fetch('/capstone/notifications/pharmacy.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pharmacyNotification)
-      });
 
       // Notify doctor as well
       var doctorNotification = {
@@ -363,8 +338,8 @@ try {
         body: JSON.stringify(doctorNotification)
       });
 
-      if(!(pharmacyRes.ok && doctorRes.ok)){
-        alert('Prescription completed but failed to send some notifications.');
+      if(!doctorRes.ok){
+        alert('Prescription completed but failed to notify doctor.');
       }
     }catch(err){
       console.error('Failed to send done notifications:', err);
