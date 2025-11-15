@@ -298,6 +298,10 @@ if ($method === 'PUT') {
   } elseif ($statusNow === 'rejected') {
     remove_nurse_prescription($storeDir, $items[$idx]['id']);
   } elseif ($statusNow === 'dispensed') {
+    $title = 'Prescription dispensed by Pharmacy';
+    $body  = $items[$idx]['body'] ?? ($items[$idx]['title'] ?? '');
+    append_role_notification('doctor', $storeDir, $title, $body, $doctorId);
+    append_role_notification('nurse', $storeDir, $title, $body);
     upsert_nurse_prescription($storeDir, $items[$idx]);
   }
   echo json_encode($items[$idx]);
