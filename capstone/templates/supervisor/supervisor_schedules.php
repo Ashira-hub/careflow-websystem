@@ -860,6 +860,11 @@ include __DIR__.'/../../includes/header.php';
       
       var formData = new FormData(newForm);
       var nurseIdVal = formData.get('nurse');
+      var nurseSelect = document.getElementById('schedule_nurse');
+      var nurseNameVal = '';
+      if (nurseSelect && nurseSelect.options && nurseSelect.selectedIndex >= 0) {
+        nurseNameVal = nurseSelect.options[nurseSelect.selectedIndex].textContent || '';
+      }
       var dateVal = formData.get('date');
       var startTimeVal = formData.get('time');
       var endTimeVal = formData.get('end_time');
@@ -869,7 +874,7 @@ include __DIR__.'/../../includes/header.php';
 
       var data = {
         nurse_id: nurseIdVal,
-        nurse: '', // will be populated on server from nurse_id if possible
+        nurse: nurseNameVal,
         date: dateVal,
         // schedules/requests.php expects start_time/end_time
         start_time: startTimeVal,
