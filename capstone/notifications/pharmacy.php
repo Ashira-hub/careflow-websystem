@@ -217,6 +217,39 @@ if ($method === 'POST') {
   ];
   $items[] = $new;
   save_store($rf, $items);
+
+  // Also persist notification into PostgreSQL notifications table (best-effort, non-fatal on error)
+  try {
+    $pdo = get_pdo();
+    $pdo->exec("CREATE TABLE IF NOT EXISTS notifications (
+      id BIGSERIAL PRIMARY KEY,
+      role TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      time TIMESTAMPTZ NOT NULL,
+      status TEXT,
+      is_read BOOLEAN NOT NULL DEFAULT false,
+      doctor_id BIGINT,
+      prescription_id BIGINT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )");
+
+    $stmt = $pdo->prepare('INSERT INTO notifications (role, title, body, time, status, is_read, doctor_id, prescription_id)
+      VALUES (:role, :title, :body, :time, :status, :is_read, :doctor_id, :prescription_id)');
+    $stmt->execute([
+      ':role' => ($role === '' ? 'pharmacy' : $role),
+      ':title' => $title,
+      ':body' => $body,
+      ':time' => $time,
+      ':status' => 'new',
+      ':is_read' => false,
+      ':doctor_id' => $doctorId ?: null,
+      ':prescription_id' => $prescriptionId ?: null,
+    ]);
+  } catch (Throwable $e) {
+    // Ignore DB persistence errors to keep file-based notifications working
+  }
+
   echo json_encode($new);
   exit;
 }
