@@ -56,7 +56,23 @@ try {
     ];
   }
 } catch (Throwable $e) {
+  // Fallback: if DB schema is missing status or query fails, load from nurse_prescriptions.json
+  $file = __DIR__ . '/../../data/nurse_prescriptions.json';
+  $items = np_load_prescriptions($file);
   $ready = [];
+  foreach ($items as $row) {
+    $ready[] = [
+      'notification_id' => (int)($row['notification_id'] ?? 0),
+      'patient'         => (string)($row['patient'] ?? ''),
+      'medicine'        => (string)($row['medicine'] ?? ''),
+      // nurse_prescriptions.json may not have a dedicated quantity field; fall back to dose when missing
+      'quantity'        => isset($row['quantity']) ? (string)$row['quantity'] : (string)($row['dose'] ?? ''),
+      'notes'           => (string)($row['notes'] ?? ''),
+      'status'          => (string)($row['status'] ?? 'accepted'),
+      'updated_at'      => (string)($row['updated_at'] ?? ($row['time'] ?? '')),
+      'doctor_id'       => isset($row['doctor_id']) ? (int)$row['doctor_id'] : 0,
+    ];
+  }
 }
 ?>
 
