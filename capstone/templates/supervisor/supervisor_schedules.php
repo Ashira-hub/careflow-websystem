@@ -21,37 +21,44 @@ try {
   $nurseMap = [];
 }
 
-// Load requests from DB schedules table
+// Load requests from DB schedules table (schema: id, nurse, title, date, start_time, end_time, note, created_by_user_id, created_at, station)
 $requests = [];
 try {
   if (!$pdo) { $pdo = get_pdo(); }
-  $sql = "SELECT id, nurse, nurse_id, nurse_email, to_char(\"date\", 'YYYY-MM-DD') AS date, shift, ward, notes, lower(status) AS status, to_char(start_time, 'HH24:MI') AS start_time, to_char(end_time, 'HH24:MI') AS end_time, created_at, updated_at FROM schedules ORDER BY created_at DESC";
+  $sql = "SELECT id,
+                 nurse,
+                 title,
+                 to_char(\"date\", 'YYYY-MM-DD') AS date,
+                 to_char(start_time, 'HH24:MI') AS start_time,
+                 to_char(end_time, 'HH24:MI') AS end_time,
+                 note,
+                 station,
+                 created_at,
+                 created_by_user_id
+          FROM schedules
+          ORDER BY created_at DESC";
   $stmtReq = $pdo->query($sql);
   foreach ($stmtReq as $row) {
-    $nurseId = (int)($row['nurse_id'] ?? 0);
     $name = trim((string)($row['nurse'] ?? ''));
-    if ($name === '' && $nurseId > 0 && isset($nurseMap[$nurseId]['name'])) {
-      $name = $nurseMap[$nurseId]['name'];
-    }
-    $email = trim((string)($row['nurse_email'] ?? ''));
-    if ($email === '' && $nurseId > 0 && isset($nurseMap[$nurseId]['email'])) {
-      $email = $nurseMap[$nurseId]['email'];
-    }
     $timeLabel = trim((string)($row['start_time'] ?? ''));
     $endLabel = trim((string)($row['end_time'] ?? ''));
     if ($endLabel !== '') { $timeLabel = ($timeLabel !== '' ? $timeLabel.' - ' : '').$endLabel; }
     $requests[] = [
       'id' => (int)$row['id'],
       'nurse' => $name,
-      'nurse_id' => $nurseId,
-      'nurse_email' => $email,
+      'nurse_id' => null,
+      'nurse_email' => '',
       'date' => trim((string)($row['date'] ?? '')),
       'time' => $timeLabel,
       'end_time' => trim((string)($row['end_time'] ?? '')),
-      'shift' => trim((string)($row['shift'] ?? '')),
-      'ward' => trim((string)($row['ward'] ?? '')),
-      'notes' => trim((string)($row['notes'] ?? '')),
-      'status' => trim((string)($row['status'] ?? 'request')),
+      // title column represents the shift name
+      'shift' => trim((string)($row['title'] ?? '')),
+      // station column maps to ward/unit
+      'ward' => trim((string)($row['station'] ?? '')),
+      // note column holds any notes/details
+      'notes' => trim((string)($row['note'] ?? '')),
+      // no status column in schema; default to 'request'
+      'status' => 'request',
     ];
   }
 } catch (Throwable $e) {
