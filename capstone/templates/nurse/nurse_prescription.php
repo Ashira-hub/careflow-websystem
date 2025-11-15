@@ -221,23 +221,31 @@ try {
   async function updateStatus(newStatus){
     if(!currentId) return;
     try{
-      var res = await fetch('/capstone/notifications/pharmacy.php?id='+encodeURIComponent(currentId),{
+      var res = await fetch('/capstone/prescriptions/update_status.php',{
         method:'PUT',
         headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ id: currentId, status: newStatus })
       });
-      if(!res.ok){ throw new Error('Failed to update prescription status'); }
-      var updated = await res.json();
+      if(!res.ok){
+        var text = '';
+        try { text = await res.text(); } catch(e) { text = ''; }
+        throw new Error(text || 'Failed to update prescription status');
+      }
+      var payload = await res.json();
+      var updated = payload && payload.data ? payload.data : {};
       renderDetail({
         patient: fields.patient.textContent,
         medicine: fields.medicine.textContent,
         med: fields.medicine.textContent,
         notes: fields.notes.textContent,
-        status: updated.status,
-        updated: updated.updated_at || updated.time || new Date().toISOString().slice(0,16)
+        status: updated.status || newStatus,
+        updated: (updated.created_at || new Date().toISOString().slice(0,16))
       });
-      var badge = document.querySelector('.load-ready[data-id="'+currentId+'"]').closest('.rx-item').querySelector('.rx-item-status');
-      if(badge){ badge.innerHTML = statusBadge(updated.status); }
+      var badgeBtn = document.querySelector('.load-ready[data-id="'+currentId+'"]');
+      if(badgeBtn){
+        var badge = badgeBtn.closest('.rx-item').querySelector('.rx-item-status');
+        if(badge){ badge.innerHTML = statusBadge(updated.status || newStatus); }
+      }
       
       // Send notifications when acknowledging
       if(newStatus === 'acknowledged'){
