@@ -260,9 +260,11 @@ try {
         if(badge){ badge.innerHTML = statusBadge(updated.status || newStatus); }
       }
       
-      // Send notifications when acknowledging
+      // Send notifications when acknowledging / completing
       if(newStatus === 'acknowledged'){
         await sendAcknowledgeNotifications();
+      } else if(newStatus === 'done'){
+        await sendDoneNotifications();
       }
     }catch(err){ alert(err.message); }
   }
@@ -302,14 +304,55 @@ try {
         body: JSON.stringify(doctorNotification)
       });
       
-      if(pharmacyRes.ok && doctorRes.ok){
-        alert('Prescription acknowledged and notifications sent to pharmacy and doctor.');
-      } else {
+      if(!(pharmacyRes.ok && doctorRes.ok)){
         alert('Prescription acknowledged but failed to send some notifications.');
       }
     }catch(err){
       console.error('Failed to send notifications:', err);
       alert('Prescription acknowledged but failed to send notifications.');
+    }
+  }
+
+  async function sendDoneNotifications(){
+    try{
+      var patient = fields.patient.textContent || 'Unknown Patient';
+      var medicine = fields.medicine.textContent || 'Unknown Medicine';
+      var nurseName = <?php echo json_encode($_SESSION['user']['name'] ?? 'Nurse'); ?>;
+
+      // Notify pharmacy that prescription was administered
+      var pharmacyNotification = {
+        title: 'Prescription administered by Nurse',
+        body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Done',
+        status: 'pending'
+      };
+      var pharmacyRes = await fetch('/capstone/notifications/pharmacy.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pharmacyNotification)
+      });
+
+      // Notify doctor as well
+      var doctorNotification = {
+        title: 'Prescription administered by Nurse',
+        body: 'Nurse: ' + nurseName + ' | Patient: ' + patient + ' | Medication: ' + medicine + ' | Status: Done',
+        status: 'pending'
+      };
+      var doctorUrl = '/capstone/notifications/pharmacy.php?role=doctor';
+      if(currentDoctorId){
+        doctorUrl += '&doctor_id=' + encodeURIComponent(currentDoctorId);
+      }
+      var doctorRes = await fetch(doctorUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(doctorNotification)
+      });
+
+      if(!(pharmacyRes.ok && doctorRes.ok)){
+        alert('Prescription completed but failed to send some notifications.');
+      }
+    }catch(err){
+      console.error('Failed to send done notifications:', err);
+      alert('Prescription completed but failed to send notifications.');
     }
   }
 
