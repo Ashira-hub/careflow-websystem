@@ -1,23 +1,29 @@
 <?php
-$page='Nurse Reports';
-$storeFile = __DIR__.'/../../data/nurse_prescriptions.json';
-function nr_escape($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-function nr_load($file){
-  if(!file_exists($file)) return [];
+$page = 'Nurse Reports';
+$storeFile = __DIR__ . '/../../data/nurse_prescriptions.json';
+function nr_escape($s)
+{
+  return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+}
+function nr_load($file)
+{
+  if (!file_exists($file)) return [];
   $raw = file_get_contents($file);
-  if($raw === false || $raw === '') return [];
+  if ($raw === false || $raw === '') return [];
   $data = json_decode($raw, true);
   return is_array($data) ? $data : [];
 }
-function nr_parse_ts($item){
+function nr_parse_ts($item)
+{
   $ts = $item['updated_at'] ?? $item['time'] ?? '';
   $time = strtotime((string)$ts);
   return $time ?: null;
 }
-function nr_group_key($ts, $group){
-  if(!$ts) return 'Unknown';
-  if($group === 'month') return date('Y-m', $ts);
-  if($group === 'week') return date('o-\WW', $ts);
+function nr_group_key($ts, $group)
+{
+  if (!$ts) return 'Unknown';
+  if ($group === 'month') return date('Y-m', $ts);
+  if ($group === 'week') return date('o-\WW', $ts);
   return date('Y-m-d', $ts);
 }
 
@@ -39,11 +45,11 @@ $prevYear = (int)date('Y', $prevTs);
 $nextMonth = (int)date('n', $nextTs);
 $nextYear = (int)date('Y', $nextTs);
 
-$entries = array_filter(nr_load($storeFile), function($item) use ($fromTs, $toTs){
+$entries = array_filter(nr_load($storeFile), function ($item) use ($fromTs, $toTs) {
   $ts = nr_parse_ts($item);
-  if(!$ts) return false;
-  if($fromTs && $ts < $fromTs) return false;
-  if($toTs && $ts > $toTs) return false;
+  if (!$ts) return false;
+  if ($fromTs && $ts < $fromTs) return false;
+  if ($toTs && $ts > $toTs) return false;
   return true;
 });
 
@@ -57,26 +63,34 @@ $patients = [];
 $grouped = [];
 $latestTs = null;
 
-foreach($entries as $entry){
+foreach ($entries as $entry) {
   $status = strtolower((string)($entry['status'] ?? ''));
-  if(isset($statusCounts[$status])){
+  if (isset($statusCounts[$status])) {
     $statusCounts[$status]++;
   } else {
     $statusCounts['pending']++;
   }
   $patientKey = trim((string)($entry['patient'] ?? 'Unknown patient')) ?: 'Unknown patient';
-  if(!isset($patients[$patientKey])){ $patients[$patientKey] = 0; }
+  if (!isset($patients[$patientKey])) {
+    $patients[$patientKey] = 0;
+  }
   $patients[$patientKey]++;
   $ts = nr_parse_ts($entry);
   $bucket = nr_group_key($ts, $group);
-  if(!isset($grouped[$bucket])){ $grouped[$bucket] = 0; }
+  if (!isset($grouped[$bucket])) {
+    $grouped[$bucket] = 0;
+  }
   $grouped[$bucket]++;
-  if($ts && (!$latestTs || $ts > $latestTs)){ $latestTs = $ts; }
+  if ($ts && (!$latestTs || $ts > $latestTs)) {
+    $latestTs = $ts;
+  }
 }
 
 $totalPrescriptions = count($entries);
 $pendingTotal = $totalPrescriptions - ($statusCounts['accepted'] + $statusCounts['acknowledged'] + $statusCounts['done']);
-if($pendingTotal > 0){ $statusCounts['pending'] = $pendingTotal; }
+if ($pendingTotal > 0) {
+  $statusCounts['pending'] = $pendingTotal;
+}
 $topPatients = $patients;
 arsort($topPatients);
 $topPatients = array_slice($topPatients, 0, 5, true);
@@ -86,7 +100,7 @@ $activityKeys = array_keys($grouped);
 $activityCounts = array_values($grouped);
 $activityMax = $activityCounts ? max($activityCounts) : 0;
 
-include __DIR__.'/../../includes/header.php';
+include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="layout-sidebar full-bleed" style="padding: 24px 20px;">
@@ -150,10 +164,18 @@ include __DIR__.'/../../includes/header.php';
         <h3 style="margin-top:0;">Top Patients</h3>
         <?php if ($topPatients): ?>
           <table>
-            <thead><tr><th>Patient</th><th>Prescriptions</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Prescriptions</th>
+              </tr>
+            </thead>
             <tbody>
               <?php foreach ($topPatients as $patient => $count): ?>
-                <tr><td><?php echo nr_escape($patient); ?></td><td><?php echo nr_escape($count); ?></td></tr>
+                <tr>
+                  <td><?php echo nr_escape($patient); ?></td>
+                  <td><?php echo nr_escape($count); ?></td>
+                </tr>
               <?php endforeach; ?>
             </tbody>
           </table>
@@ -166,5 +188,4 @@ include __DIR__.'/../../includes/header.php';
   </div>
 </div>
 
-<?php include __DIR__.'/../../includes/footer.php'; ?>
-
+<?php include __DIR__ . '/../../includes/footer.php'; ?>

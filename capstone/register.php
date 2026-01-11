@@ -1,4 +1,5 @@
-<?php $page='Register'; include __DIR__.'/includes/header.php'; ?>
+<?php $page = 'Register';
+include __DIR__ . '/includes/header.php'; ?>
 <section class="container narrow">
   <div class="auth-grid stack">
     <div class="auth-copy">
@@ -6,7 +7,10 @@
       <p class="muted">Join CareFlow to manage appointments and access your health records.</p>
     </div>
     <?php if (!empty($_SESSION['flash_error'])): ?>
-      <div class="alert alert-error"><?php echo nl2br(htmlspecialchars($_SESSION['flash_error'])); unset($_SESSION['flash_error']); ?></div>
+      <div class="alert alert-error">
+        <?php echo nl2br(htmlspecialchars($_SESSION['flash_error']));
+        unset($_SESSION['flash_error']); ?>
+      </div>
     <?php endif; ?>
     <form class="card" method="post" action="/capstone/auth/register.php">
       <div class="form-field">
@@ -47,18 +51,18 @@
   </div>
 </section>
 <script>
-(function(){
-  var toggles=document.querySelectorAll('.toggle-password');
-  toggles.forEach(function(t){
-    t.addEventListener('click',function(){
-      var id=t.getAttribute('data-target');
-      var input=document.getElementById(id);
-      if(!input) return;
-      var isPwd=input.type==='password';
-      input.type=isPwd?'text':'password';
-      t.src=isPwd?'/capstone/assets/img/hidden.png':'/capstone/assets/img/eye.png';
+  (function() {
+    var toggles = document.querySelectorAll('.toggle-password');
+    toggles.forEach(function(t) {
+      t.addEventListener('click', function() {
+        var id = t.getAttribute('data-target');
+        var input = document.getElementById(id);
+        if (!input) return;
+        var isPwd = input.type === 'password';
+        input.type = isPwd ? 'text' : 'password';
+        t.src = isPwd ? '/capstone/assets/img/hidden.png' : '/capstone/assets/img/eye.png';
+      });
     });
-  });
-})();
+  })();
 </script>
-<?php include __DIR__.'/includes/footer.php'; ?>
+<?php include __DIR__ . '/includes/footer.php'; ?>

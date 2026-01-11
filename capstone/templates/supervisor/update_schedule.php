@@ -74,4 +74,3 @@ echo json_encode([
     'id' => $scheduleId,
     'status' => $newStatus
 ]);
-?>

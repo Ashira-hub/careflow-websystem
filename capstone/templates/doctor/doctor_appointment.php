@@ -1,29 +1,34 @@
-<?php $page='Doctor Appointment'; include __DIR__.'/../../includes/header.php'; ?>
+<?php $page = 'Doctor Appointment';
+include __DIR__ . '/../../includes/header.php'; ?>
 
 <?php
 // Calendar logic aligned with nurse_schedule.php
 $y = isset($_GET['y']) ? intval($_GET['y']) : intval(date('Y'));
 $m = isset($_GET['m']) ? intval($_GET['m']) : intval(date('n'));
 // Normalize month out-of-range (e.g., 0 or 13)
-$normTs = mktime(0,0,0,$m,1,$y);
-$y = intval(date('Y',$normTs));
-$m = intval(date('n',$normTs));
-$firstTs = mktime(0,0,0,$m,1,$y);
-$firstDow = intval(date('w',$firstTs)); // 0=Sun..6=Sat
-$daysInMonth = intval(date('t',$firstTs));
-$prevTs = mktime(0,0,0,$m-1,1,$y);
-$nextTs = mktime(0,0,0,$m+1,1,$y);
-$prevY = intval(date('Y',$prevTs)); $prevM = intval(date('n',$prevTs));
-$nextY = intval(date('Y',$nextTs)); $nextM = intval(date('n',$nextTs));
-$daysInPrev = intval(date('t',$prevTs));
-$todayY = intval(date('Y')); $todayM = intval(date('n')); $todayD = intval(date('j'));
+$normTs = mktime(0, 0, 0, $m, 1, $y);
+$y = intval(date('Y', $normTs));
+$m = intval(date('n', $normTs));
+$firstTs = mktime(0, 0, 0, $m, 1, $y);
+$firstDow = intval(date('w', $firstTs)); // 0=Sun..6=Sat
+$daysInMonth = intval(date('t', $firstTs));
+$prevTs = mktime(0, 0, 0, $m - 1, 1, $y);
+$nextTs = mktime(0, 0, 0, $m + 1, 1, $y);
+$prevY = intval(date('Y', $prevTs));
+$prevM = intval(date('n', $prevTs));
+$nextY = intval(date('Y', $nextTs));
+$nextM = intval(date('n', $nextTs));
+$daysInPrev = intval(date('t', $prevTs));
+$todayY = intval(date('Y'));
+$todayM = intval(date('n'));
+$todayD = intval(date('j'));
 $startDayOffset = 1 - $firstDow; // value added to index to get day number
 $cells = 42; // 6 weeks grid
 ?>
 
 <?php
 // Load appointments from PostgreSQL
-require_once __DIR__.'/../../config/db.php';
+require_once __DIR__ . '/../../config/db.php';
 $appointments = [];
 try {
   $pdo = get_pdo();
@@ -82,7 +87,7 @@ try {
         <div style="text-align:center;">Sat</div>
       </div>
       <div class="calendar-grid">
-        <?php for($i=0; $i<$cells; $i++):
+        <?php for ($i = 0; $i < $cells; $i++):
           $dayNum = $startDayOffset + $i; // relative to current month
           if ($dayNum < 1) {
             $display = $daysInPrev + $dayNum; // prev month
@@ -116,52 +121,52 @@ try {
             $mon = $date ? strtoupper($date->format('M')) : '';
             $day = $date ? $date->format('j') : '';
             $year = $date ? $date->format('Y') : '';
-            $timeLabel = !empty($row['time']) ? substr($row['time'],0,5) : '';
+            $timeLabel = !empty($row['time']) ? substr($row['time'], 0, 5) : '';
           ?>
-          <div class="appt-item" data-id="<?php echo (int)($row['id']??0); ?>" data-patient="<?php echo htmlspecialchars($row['patient']??'', ENT_QUOTES); ?>" data-date="<?php echo htmlspecialchars($row['date']??'', ENT_QUOTES); ?>" data-time="<?php echo htmlspecialchars(substr((string)($row['time']??''),0,8), ENT_QUOTES); ?>" data-notes="<?php echo htmlspecialchars($row['notes']??'', ENT_QUOTES); ?>" style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #e5e7eb;">
-            <div class="appt-left" style="display:flex;align-items:center;gap:0;">
-              <input type="checkbox" class="appt-check" aria-label="Select appointment" style="margin:0 15px 0 0;">
-              <div class="appt-date" style="width:56px;min-width:56px;text-align:center;">
-                <div style="font-size:.70rem;color:#64748b;letter-spacing:.4px;"><?php echo htmlspecialchars($mon); ?></div>
-                <div style="font-size:1.1rem;font-weight:600;line-height:1;"><?php echo htmlspecialchars($day); ?></div>
-                <div style="font-size:.70rem;color:#94a3b8;line-height:1.1;"><?php echo htmlspecialchars($year); ?></div>
+            <div class="appt-item" data-id="<?php echo (int)($row['id'] ?? 0); ?>" data-patient="<?php echo htmlspecialchars($row['patient'] ?? '', ENT_QUOTES); ?>" data-date="<?php echo htmlspecialchars($row['date'] ?? '', ENT_QUOTES); ?>" data-time="<?php echo htmlspecialchars(substr((string)($row['time'] ?? ''), 0, 8), ENT_QUOTES); ?>" data-notes="<?php echo htmlspecialchars($row['notes'] ?? '', ENT_QUOTES); ?>" style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #e5e7eb;">
+              <div class="appt-left" style="display:flex;align-items:center;gap:0;">
+                <input type="checkbox" class="appt-check" aria-label="Select appointment" style="margin:0 15px 0 0;">
+                <div class="appt-date" style="width:56px;min-width:56px;text-align:center;">
+                  <div style="font-size:.70rem;color:#64748b;letter-spacing:.4px;"><?php echo htmlspecialchars($mon); ?></div>
+                  <div style="font-size:1.1rem;font-weight:600;line-height:1;"><?php echo htmlspecialchars($day); ?></div>
+                  <div style="font-size:.70rem;color:#94a3b8;line-height:1.1;"><?php echo htmlspecialchars($year); ?></div>
+                </div>
+              </div>
+              <div class="appt-meta" style="flex:1;min-width:0;">
+                <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  <div style="font-weight:600;color:#0f172a;margin-bottom:2px;"><?php echo htmlspecialchars($row['patient'] ?? ''); ?></div>
+                  <div style="font-size:0.9rem;color:#64748b;"><?php echo htmlspecialchars($timeLabel); ?></div>
+                </div>
+              </div>
+              <div class="appt-actions" style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+                <button class="btn-ghost btn-notify" title="Set reminder" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/notification.png" alt="Remind" style="width:18px;height:18px;object-fit:contain;"></button>
+                <button class="btn-ghost btn-edit" title="Edit appointment" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/pencil.png" alt="Edit" style="width:18px;height:18px;object-fit:contain;"></button>
+                <button class="btn-ghost btn-delete" title="Delete appointment" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/bin.png" alt="Delete" style="width:18px;height:18px;object-fit:contain;"></button>
               </div>
             </div>
-            <div class="appt-meta" style="flex:1;min-width:0;">
-              <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                <div style="font-weight:600;color:#0f172a;margin-bottom:2px;"><?php echo htmlspecialchars($row['patient'] ?? ''); ?></div>
-                <div style="font-size:0.9rem;color:#64748b;"><?php echo htmlspecialchars($timeLabel); ?></div>
-              </div>
-            </div>
-            <div class="appt-actions" style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-              <button class="btn-ghost btn-notify" title="Set reminder" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/notification.png" alt="Remind" style="width:18px;height:18px;object-fit:contain;"></button>
-              <button class="btn-ghost btn-edit" title="Edit appointment" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/pencil.png" alt="Edit" style="width:18px;height:18px;object-fit:contain;"></button>
-              <button class="btn-ghost btn-delete" title="Delete appointment" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/bin.png" alt="Delete" style="width:18px;height:18px;object-fit:contain;"></button>
-            </div>
-          </div>
           <?php endforeach; ?>
         <?php endif; ?>
       </div>
-      <div id="noApptMsg" class="muted" style="padding:8px 0;<?php echo !empty($appointments) ? 'display:none;' : '';?>">No appointments yet.</div>
-      
+      <div id="noApptMsg" class="muted" style="padding:8px 0;<?php echo !empty($appointments) ? 'display:none;' : ''; ?>">No appointments yet.</div>
+
       <?php
-        // Pager controls: Prev/Next and page select (1..1000)
-        $prevAp = max(1, ($ap ?? 1) - 1);
-        $nextAp = min(1000, ($ap ?? 1) + 1);
-        // Preserve calendar y/m in pager links
-        $baseY = isset($y) ? intval($y) : intval(date('Y'));
-        $baseM = isset($m) ? intval($m) : intval(date('n'));
-        $self = htmlspecialchars($_SERVER['PHP_SELF']);
-        $qsPrev = "?y={$baseY}&m={$baseM}&ap={$prevAp}";
-        $qsNext = "?y={$baseY}&m={$baseM}&ap={$nextAp}";
+      // Pager controls: Prev/Next and page select (1..1000)
+      $prevAp = max(1, ($ap ?? 1) - 1);
+      $nextAp = min(1000, ($ap ?? 1) + 1);
+      // Preserve calendar y/m in pager links
+      $baseY = isset($y) ? intval($y) : intval(date('Y'));
+      $baseM = isset($m) ? intval($m) : intval(date('n'));
+      $self = htmlspecialchars($_SERVER['PHP_SELF']);
+      $qsPrev = "?y={$baseY}&m={$baseM}&ap={$prevAp}";
+      $qsNext = "?y={$baseY}&m={$baseM}&ap={$nextAp}";
       ?>
       <div class="pager" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;border-top:1px solid #e5e7eb;margin-top:auto;">
         <button class="btn btn-outline" type="button" onclick="window.location.href='<?php echo $qsPrev; ?>'" style="padding:8px 16px;border-radius:8px;font-weight:600;<?php echo ($ap ?? 1) <= 1 ? 'opacity:0.5;cursor:not-allowed;' : ''; ?>" <?php echo ($ap ?? 1) <= 1 ? 'disabled' : ''; ?>>← Prev</button>
         <div style="display:flex;align-items:center;gap:8px;">
           <span class="muted-small" style="font-size:0.9rem;color:#64748b;">Page</span>
           <select id="apPageSelect" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:0.9rem;cursor:pointer;" onchange="window.location.href='?y=<?php echo $baseY; ?>&m=<?php echo $baseM; ?>&ap='+this.value">
-            <?php for($i=1;$i<=100;$i++): ?>
-              <option value="<?php echo $i; ?>" <?php echo ($i===($ap??1)) ? 'selected' : ''; ?>><?php echo $i; ?></option>
+            <?php for ($i = 1; $i <= 100; $i++): ?>
+              <option value="<?php echo $i; ?>" <?php echo ($i === ($ap ?? 1)) ? 'selected' : ''; ?>><?php echo $i; ?></option>
             <?php endfor; ?>
           </select>
           <span class="muted-small" style="font-size:0.9rem;color:#64748b;">of 100</span>
@@ -183,7 +188,7 @@ try {
         </div>
         <button type="button" id="closeApptModal" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color 0.2s ease;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.3)'" onmouseout="this.style.backgroundColor='rgba(255,255,255,0.2)'">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 6L6 18M6 6l12 12"/>
+            <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
       </div>
@@ -216,7 +221,7 @@ try {
   <button type="button" id="srCloseBackdropAppt" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">Close</button>
   <span aria-hidden="true" id="srFocusTrapAppt" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"></span>
   <script>
-    (function(){
+    (function() {
       var openBtn = document.getElementById('openApptModal');
       var modal = document.getElementById('apptModal');
       var closeBtn = document.getElementById('closeApptModal');
@@ -226,10 +231,17 @@ try {
       var submitBtn = document.getElementById('submitApptBtn');
       var listEl = document.getElementById('apptItems');
       var editingId = null; // null=create, number=edit
-      var rModal = null, rBackdrop=null, rClose=null, rCancel=null, rConfirm=null, rCustom=null, rTitle=null;
+      var rModal = null,
+        rBackdrop = null,
+        rClose = null,
+        rCancel = null,
+        rConfirm = null,
+        rCustom = null,
+        rTitle = null;
       var currentReminder = null;
-      function ensureReminderBindings(){
-        if(rModal) return; // already bound
+
+      function ensureReminderBindings() {
+        if (rModal) return; // already bound
         rModal = document.getElementById('reminderModal');
         rBackdrop = rModal ? rModal.querySelector('[data-backdrop]') : null;
         rClose = document.getElementById('closeReminderModal');
@@ -237,51 +249,145 @@ try {
         rConfirm = document.getElementById('confirmReminder');
         rCustom = document.getElementById('reminderCustom');
         rTitle = document.getElementById('reminderTitle');
-        if(rBackdrop){ rBackdrop.addEventListener('click', function(){ if(rModal){ rModal.style.display='none'; document.body.style.overflow=''; } }); }
-        if(rClose){ rClose.addEventListener('click', function(){ if(rModal){ rModal.style.display='none'; document.body.style.overflow=''; } }); }
-        if(rCancel){ rCancel.addEventListener('click', function(){ if(rModal){ rModal.style.display='none'; document.body.style.overflow=''; } }); }
-        if(rConfirm){ rConfirm.addEventListener('click', async function(){
-          if(!currentReminder) return;
-          var cus = rCustom ? parseInt(rCustom.value,10) : NaN;
-          var m = (!isNaN(cus) && cus>=0) ? cus : 0; // allow 0 = on-time
-          if(isNaN(cus) || cus < 0){ alert('Please enter minutes (0 or more)'); return; }
-          try{
-            var resR = await fetch('/capstone/appointments/reminders.php',{
-              method:'POST', headers:{ 'Content-Type':'application/json' },
-              body: JSON.stringify({ appointment_id: currentReminder.id, patient: currentReminder.patient, date: currentReminder.date, time: currentReminder.time, offset_minutes: m, role: 'doctor' })
-            });
-            if(!resR.ok){ var txtR = await resR.text().catch(function(){return '';}); throw new Error(txtR || 'Failed to set reminder'); }
-            alert('Reminder saved');
-            if(rModal){ rModal.style.display='none'; document.body.style.overflow=''; }
-          }catch(err){ alert('Error: '+err.message); }
-        }); }
+        if (rBackdrop) {
+          rBackdrop.addEventListener('click', function() {
+            if (rModal) {
+              rModal.style.display = 'none';
+              document.body.style.overflow = '';
+            }
+          });
+        }
+        if (rClose) {
+          rClose.addEventListener('click', function() {
+            if (rModal) {
+              rModal.style.display = 'none';
+              document.body.style.overflow = '';
+            }
+          });
+        }
+        if (rCancel) {
+          rCancel.addEventListener('click', function() {
+            if (rModal) {
+              rModal.style.display = 'none';
+              document.body.style.overflow = '';
+            }
+          });
+        }
+        if (rConfirm) {
+          rConfirm.addEventListener('click', async function() {
+            if (!currentReminder) return;
+            var cus = rCustom ? parseInt(rCustom.value, 10) : NaN;
+            var m = (!isNaN(cus) && cus >= 0) ? cus : 0; // allow 0 = on-time
+            if (isNaN(cus) || cus < 0) {
+              alert('Please enter minutes (0 or more)');
+              return;
+            }
+            try {
+              var resR = await fetch('/capstone/appointments/reminders.php', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  appointment_id: currentReminder.id,
+                  patient: currentReminder.patient,
+                  date: currentReminder.date,
+                  time: currentReminder.time,
+                  offset_minutes: m,
+                  role: 'doctor'
+                })
+              });
+              if (!resR.ok) {
+                var txtR = await resR.text().catch(function() {
+                  return '';
+                });
+                throw new Error(txtR || 'Failed to set reminder');
+              }
+              alert('Reminder saved');
+              if (rModal) {
+                rModal.style.display = 'none';
+                document.body.style.overflow = '';
+              }
+            } catch (err) {
+              alert('Error: ' + err.message);
+            }
+          });
+        }
       }
-      function open(){ modal.style.display = 'block'; document.body.style.overflow='hidden'; }
-      function close(){ modal.style.display = 'none'; document.body.style.overflow=''; }
-      function resetFormMode(){ editingId = null; if(modalTitle) modalTitle.textContent='New Appointment'; if(submitBtn) submitBtn.textContent='Create Appointment'; }
-      function setFormValues(p, d, t, n){
-        var fP = document.getElementById('appt_patient'); if(fP) fP.value = p || '';
-        var fD = document.getElementById('appt_date'); if(fD) fD.value = d || '';
-        var fT = document.getElementById('appt_time'); if(fT) fT.value = t || '';
-        var fN = document.getElementById('appt_reason'); if(fN) fN.value = n || '';
+
+      function open() {
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
       }
-      function getFormValues(){
+
+      function close() {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+
+      function resetFormMode() {
+        editingId = null;
+        if (modalTitle) modalTitle.textContent = 'New Appointment';
+        if (submitBtn) submitBtn.textContent = 'Create Appointment';
+      }
+
+      function setFormValues(p, d, t, n) {
+        var fP = document.getElementById('appt_patient');
+        if (fP) fP.value = p || '';
+        var fD = document.getElementById('appt_date');
+        if (fD) fD.value = d || '';
+        var fT = document.getElementById('appt_time');
+        if (fT) fT.value = t || '';
+        var fN = document.getElementById('appt_reason');
+        if (fN) fN.value = n || '';
+      }
+
+      function getFormValues() {
         return {
-          patient: (document.getElementById('appt_patient')||{}).value || '',
-          date: (document.getElementById('appt_date')||{}).value || '',
-          time: (document.getElementById('appt_time')||{}).value || '',
-          notes: (document.getElementById('appt_reason')||{}).value || ''
+          patient: (document.getElementById('appt_patient') || {}).value || '',
+          date: (document.getElementById('appt_date') || {}).value || '',
+          time: (document.getElementById('appt_time') || {}).value || '',
+          notes: (document.getElementById('appt_reason') || {}).value || ''
         };
       }
-      function monthAbbr(dateStr){
-        if(!dateStr) return '';
-        try{ var d = new Date(dateStr+'T00:00:00'); return d.toLocaleString('en-US', {month:'short'}).toUpperCase(); }catch(e){ return ''; }
+
+      function monthAbbr(dateStr) {
+        if (!dateStr) return '';
+        try {
+          var d = new Date(dateStr + 'T00:00:00');
+          return d.toLocaleString('en-US', {
+            month: 'short'
+          }).toUpperCase();
+        } catch (e) {
+          return '';
+        }
       }
-      function yearPart(dateStr){ if(!dateStr) return ''; try{ return String(new Date(dateStr+'T00:00:00').getFullYear()); }catch(e){ return ''; } }
-      function dayPart(dateStr){ if(!dateStr) return ''; try{ return String(new Date(dateStr+'T00:00:00').getDate()); }catch(e){ return ''; } }
-      function timeLabel(t){ if(!t) return ''; return t.length>5 ? t.substring(0,5) : t; }
-      function prependApptItem(appt){
-        if(!listEl) return;
+
+      function yearPart(dateStr) {
+        if (!dateStr) return '';
+        try {
+          return String(new Date(dateStr + 'T00:00:00').getFullYear());
+        } catch (e) {
+          return '';
+        }
+      }
+
+      function dayPart(dateStr) {
+        if (!dateStr) return '';
+        try {
+          return String(new Date(dateStr + 'T00:00:00').getDate());
+        } catch (e) {
+          return '';
+        }
+      }
+
+      function timeLabel(t) {
+        if (!t) return '';
+        return t.length > 5 ? t.substring(0, 5) : t;
+      }
+
+      function prependApptItem(appt) {
+        if (!listEl) return;
         var id = appt.id || '';
         var patient = appt.patient || '';
         var date = appt.date || '';
@@ -299,163 +405,291 @@ try {
         wrapper.setAttribute('data-time', time);
         wrapper.setAttribute('data-notes', notes);
         wrapper.style.cssText = 'display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #e5e7eb;';
-        wrapper.innerHTML = ''+
-          '<div class="appt-left" style="display:flex;align-items:center;gap:0;">'+
-            '<input type="checkbox" class="appt-check" aria-label="Select appointment" style="margin:0 15px 0 0;">'+
-            '<div class="appt-date" style="width:56px;min-width:56px;text-align:center;">'+
-              '<div style="font-size:.70rem;color:#64748b;letter-spacing:.4px;">'+(mon||'')+'</div>'+
-              '<div style="font-size:1.1rem;font-weight:600;line-height:1;">'+(day||'')+'</div>'+
-              '<div style="font-size:.70rem;color:#94a3b8;line-height:1.1;">'+(year||'')+'</div>'+
-            '</div>'+
-          '</div>'+
-          '<div class="appt-meta" style="flex:1;min-width:0;">'+
-            '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+
-              '<div style="font-weight:600;color:#0f172a;margin-bottom:2px;">'+(patient||'')+'</div>'+
-              '<div style="font-size:0.9rem;color:#64748b;">'+(tLabel||'')+'</div>'+
-            '</div>'+
-          '</div>'+
-          '<div class="appt-actions" style="margin-left:auto;display:flex;align-items:center;gap:6px;">'+
-            '<button class="btn-ghost btn-notify" title="Set reminder" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/notification.png" alt="Remind" style="width:18px;height:18px;object-fit:contain;"></button>'+
-            '<button class="btn-ghost btn-edit" title="Edit appointment" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/pencil.png" alt="Edit" style="width:18px;height:18px;object-fit:contain;"></button>'+
-            '<button class="btn-ghost btn-delete" title="Delete appointment" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/bin.png" alt="Delete" style="width:18px;height:18px;object-fit:contain;"></button>'+
+        wrapper.innerHTML = '' +
+          '<div class="appt-left" style="display:flex;align-items:center;gap:0;">' +
+          '<input type="checkbox" class="appt-check" aria-label="Select appointment" style="margin:0 15px 0 0;">' +
+          '<div class="appt-date" style="width:56px;min-width:56px;text-align:center;">' +
+          '<div style="font-size:.70rem;color:#64748b;letter-spacing:.4px;">' + (mon || '') + '</div>' +
+          '<div style="font-size:1.1rem;font-weight:600;line-height:1;">' + (day || '') + '</div>' +
+          '<div style="font-size:.70rem;color:#94a3b8;line-height:1.1;">' + (year || '') + '</div>' +
+          '</div>' +
+          '</div>' +
+          '<div class="appt-meta" style="flex:1;min-width:0;">' +
+          '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+          '<div style="font-weight:600;color:#0f172a;margin-bottom:2px;">' + (patient || '') + '</div>' +
+          '<div style="font-size:0.9rem;color:#64748b;">' + (tLabel || '') + '</div>' +
+          '</div>' +
+          '</div>' +
+          '<div class="appt-actions" style="margin-left:auto;display:flex;align-items:center;gap:6px;">' +
+          '<button class="btn-ghost btn-notify" title="Set reminder" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/notification.png" alt="Remind" style="width:18px;height:18px;object-fit:contain;"></button>' +
+          '<button class="btn-ghost btn-edit" title="Edit appointment" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/pencil.png" alt="Edit" style="width:18px;height:18px;object-fit:contain;"></button>' +
+          '<button class="btn-ghost btn-delete" title="Delete appointment" style="border:none;background:transparent;box-shadow:none;padding:4px;cursor:pointer;"><img src="/capstone/assets/img/bin.png" alt="Delete" style="width:18px;height:18px;object-fit:contain;"></button>' +
           '</div>';
         listEl.insertBefore(wrapper, listEl.firstChild);
         var emptyMsg = document.getElementById('noApptMsg');
-        if(emptyMsg){ emptyMsg.style.display = 'none'; }
+        if (emptyMsg) {
+          emptyMsg.style.display = 'none';
+        }
       }
-      if(openBtn){ openBtn.addEventListener('click', function(e){ e.preventDefault(); open(); }); }
-      if(closeBtn){ closeBtn.addEventListener('click', function(){ close(); }); }
-      if(cancelBtn){ cancelBtn.addEventListener('click', function(){ close(); }); }
-      if(backdrop){ backdrop.addEventListener('click', function(){ close(); }); }
-      document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && modal.style.display === 'block'){ close(); } });
+      if (openBtn) {
+        openBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          open();
+        });
+      }
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+          close();
+        });
+      }
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+          close();
+        });
+      }
+      if (backdrop) {
+        backdrop.addEventListener('click', function() {
+          close();
+        });
+      }
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.style.display === 'block') {
+          close();
+        }
+      });
       var form = document.getElementById('apptForm');
-      if(form){ form.addEventListener('submit', async function(e){
-        e.preventDefault();
-        var vals = getFormValues();
-        try{
-          if(editingId){
-            // Get doctor's name from session or use default
-            var doctorName = '<?php echo htmlspecialchars($_SESSION["user"]["full_name"] ?? "Doctor", ENT_QUOTES); ?>';
-            
-            var resU = await fetch('/capstone/appointments/create.php?id='+encodeURIComponent(editingId),{
-              method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ patient: vals.patient, date: vals.date, time: vals.time, notes: vals.notes, createdByName: doctorName })
-            });
-            if(!resU.ok){ var textU = await resU.text().catch(function(){return '';}); throw new Error(textU || 'Failed to update'); }
-            var updated = await resU.json();
-            // Reload to ensure list reflects only DB records
-            window.location.reload();
-            return;
-          } else {
-            // Get doctor's name from session or use default
-            var doctorName = '<?php echo htmlspecialchars($_SESSION["user"]["full_name"] ?? "Doctor", ENT_QUOTES); ?>';
-            
-            var res = await fetch('/capstone/appointments/create.php',{
-              method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ patient: vals.patient, date: vals.date, time: vals.time, notes: vals.notes, done:false, createdByName: doctorName })
-            });
-            if(!res.ok){ var text = await res.text().catch(function(){ return ''; }); throw new Error(text || 'Failed to save'); }
-            var data = await res.json();
-            // Try to prepend without full reload if we got an id back
-            var newId = (data && (data.id || (data.appointment && data.appointment.id))) || null;
-            if(newId){
-              prependApptItem({ id:newId, patient: vals.patient, date: vals.date, time: vals.time, notes: vals.notes });
-              form.reset();
-              resetFormMode();
-              close();
+      if (form) {
+        form.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          var vals = getFormValues();
+          try {
+            if (editingId) {
+              // Get doctor's name from session or use default
+              var doctorName = '<?php echo htmlspecialchars($_SESSION["user"]["full_name"] ?? "Doctor", ENT_QUOTES); ?>';
+
+              var resU = await fetch('/capstone/appointments/create.php?id=' + encodeURIComponent(editingId), {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  patient: vals.patient,
+                  date: vals.date,
+                  time: vals.time,
+                  notes: vals.notes,
+                  createdByName: doctorName
+                })
+              });
+              if (!resU.ok) {
+                var textU = await resU.text().catch(function() {
+                  return '';
+                });
+                throw new Error(textU || 'Failed to update');
+              }
+              var updated = await resU.json();
+              // Reload to ensure list reflects only DB records
+              window.location.reload();
+              return;
+            } else {
+              // Get doctor's name from session or use default
+              var doctorName = '<?php echo htmlspecialchars($_SESSION["user"]["full_name"] ?? "Doctor", ENT_QUOTES); ?>';
+
+              var res = await fetch('/capstone/appointments/create.php', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  patient: vals.patient,
+                  date: vals.date,
+                  time: vals.time,
+                  notes: vals.notes,
+                  done: false,
+                  createdByName: doctorName
+                })
+              });
+              if (!res.ok) {
+                var text = await res.text().catch(function() {
+                  return '';
+                });
+                throw new Error(text || 'Failed to save');
+              }
+              var data = await res.json();
+              // Try to prepend without full reload if we got an id back
+              var newId = (data && (data.id || (data.appointment && data.appointment.id))) || null;
+              if (newId) {
+                prependApptItem({
+                  id: newId,
+                  patient: vals.patient,
+                  date: vals.date,
+                  time: vals.time,
+                  notes: vals.notes
+                });
+                form.reset();
+                resetFormMode();
+                close();
+                return;
+              }
+              // Fallback to reload if response doesn't include id
+              window.location.reload();
               return;
             }
-            // Fallback to reload if response doesn't include id
-            window.location.reload();
-            return;
+            form.reset();
+            resetFormMode();
+            close();
+          } catch (err) {
+            alert('Error: ' + err.message);
           }
-          form.reset();
-          resetFormMode();
-          close();
-        }catch(err){ alert('Error: '+ err.message); }
-      }); }
+        });
+      }
 
-      function apttimeLabel(t){
-        if(!t) return '';
-        return t.length>5 ? t.substring(0,5) : t;
+      function apttimeLabel(t) {
+        if (!t) return '';
+        return t.length > 5 ? t.substring(0, 5) : t;
       }
       // Pager select change
-      (function(){
+      (function() {
         var sel = document.getElementById('apPageSelect');
-        if(!sel) return;
-        sel.addEventListener('change', function(){
-          var p = parseInt(sel.value,10)||1;
+        if (!sel) return;
+        sel.addEventListener('change', function() {
+          var p = parseInt(sel.value, 10) || 1;
           var url = new URL(window.location.href);
           url.searchParams.set('ap', p);
           // Preserve y/m if present
-          if(!url.searchParams.has('y')) url.searchParams.set('y','<?php echo isset($y)?$y:intval(date('Y')); ?>');
-          if(!url.searchParams.has('m')) url.searchParams.set('m','<?php echo isset($m)?$m:intval(date('n')); ?>');
+          if (!url.searchParams.has('y')) url.searchParams.set('y', '<?php echo isset($y) ? $y : intval(date('Y')); ?>');
+          if (!url.searchParams.has('m')) url.searchParams.set('m', '<?php echo isset($m) ? $m : intval(date('n')); ?>');
           window.location.href = url.pathname + '?' + url.searchParams.toString();
         });
       })();
       // Edit/Delete handlers (event delegation)
-      if(listEl){
-        listEl.addEventListener('click', async function(e){
-          var btn = e.target.closest('button'); if(!btn) return;
-          var item = e.target.closest('.appt-item'); if(!item) return;
+      if (listEl) {
+        listEl.addEventListener('click', async function(e) {
+          var btn = e.target.closest('button');
+          if (!btn) return;
+          var item = e.target.closest('.appt-item');
+          if (!item) return;
           var id = item.getAttribute('data-id');
-          if(btn.classList.contains('btn-edit')){
-            editingId = id ? parseInt(id,10) : null;
-            if(modalTitle) modalTitle.textContent = 'Edit Appointment';
-            if(submitBtn) submitBtn.textContent = 'Save Changes';
-            setFormValues(item.getAttribute('data-patient')||'', item.getAttribute('data-date')||'', item.getAttribute('data-time')||'', item.getAttribute('data-notes')||'');
+          if (btn.classList.contains('btn-edit')) {
+            editingId = id ? parseInt(id, 10) : null;
+            if (modalTitle) modalTitle.textContent = 'Edit Appointment';
+            if (submitBtn) submitBtn.textContent = 'Save Changes';
+            setFormValues(item.getAttribute('data-patient') || '', item.getAttribute('data-date') || '', item.getAttribute('data-time') || '', item.getAttribute('data-notes') || '');
             open();
-          } else if(btn.classList.contains('btn-delete')){
-            if(!id){ alert('Missing appointment id'); return; }
-            var ok = confirm('Delete this appointment?'); if(!ok) return;
-            try{
-              var resD = await fetch('/capstone/appointments/create.php?id='+encodeURIComponent(id),{ method:'DELETE' });
-              if(!resD.ok && resD.status!==204){ var txtD = await resD.text().catch(function(){return '';}); throw new Error(txtD || 'Failed to delete'); }
+          } else if (btn.classList.contains('btn-delete')) {
+            if (!id) {
+              alert('Missing appointment id');
+              return;
+            }
+            var ok = confirm('Delete this appointment?');
+            if (!ok) return;
+            try {
+              var resD = await fetch('/capstone/appointments/create.php?id=' + encodeURIComponent(id), {
+                method: 'DELETE'
+              });
+              if (!resD.ok && resD.status !== 204) {
+                var txtD = await resD.text().catch(function() {
+                  return '';
+                });
+                throw new Error(txtD || 'Failed to delete');
+              }
               // Reload to ensure list reflects only DB records
               window.location.reload();
               return;
-            }catch(err){ alert('Error: '+ err.message); }
-          } else if(btn.classList.contains('btn-notify')){
-            if(!id){ alert('Missing appointment id'); return; }
+            } catch (err) {
+              alert('Error: ' + err.message);
+            }
+          } else if (btn.classList.contains('btn-notify')) {
+            if (!id) {
+              alert('Missing appointment id');
+              return;
+            }
             var date = item.getAttribute('data-date') || '';
             var time = item.getAttribute('data-time') || '';
             var patient = item.getAttribute('data-patient') || '';
-            if(!date || !time){ alert('Missing schedule to set reminder'); return; }
+            if (!date || !time) {
+              alert('Missing schedule to set reminder');
+              return;
+            }
             ensureReminderBindings();
-            currentReminder = { id: parseInt(id,10), date: date, time: time, patient: patient };
-            if(rTitle){ rTitle.textContent = 'Set Reminder - '+patient; }
-            if(rCustom){ rCustom.value = ''; }
-            if(rModal){ rModal.style.display='block'; document.body.style.overflow='hidden'; }
+            currentReminder = {
+              id: parseInt(id, 10),
+              date: date,
+              time: time,
+              patient: patient
+            };
+            if (rTitle) {
+              rTitle.textContent = 'Set Reminder - ' + patient;
+            }
+            if (rCustom) {
+              rCustom.value = '';
+            }
+            if (rModal) {
+              rModal.style.display = 'block';
+              document.body.style.overflow = 'hidden';
+            }
           }
         });
         // Mark done via checkbox
-        listEl.addEventListener('change', async function(e){
-          var cb = e.target.closest('.appt-check'); if(!cb) return;
-          var item = e.target.closest('.appt-item'); if(!item) return;
-          var id = item.getAttribute('data-id'); if(!id){ alert('Missing appointment id'); cb.checked=false; return; }
-          if(!cb.checked){ return; }
+        listEl.addEventListener('change', async function(e) {
+          var cb = e.target.closest('.appt-check');
+          if (!cb) return;
+          var item = e.target.closest('.appt-item');
+          if (!item) return;
+          var id = item.getAttribute('data-id');
+          if (!id) {
+            alert('Missing appointment id');
+            cb.checked = false;
+            return;
+          }
+          if (!cb.checked) {
+            return;
+          }
           // Ask for confirmation before marking as done
           var confirmDone = confirm('Mark this appointment as done?');
-          if(!confirmDone){ cb.checked = false; return; }
-          try{
-            var res = await fetch('/capstone/appointments/create.php?id='+encodeURIComponent(id),{
-              method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ done: true })
+          if (!confirmDone) {
+            cb.checked = false;
+            return;
+          }
+          try {
+            var res = await fetch('/capstone/appointments/create.php?id=' + encodeURIComponent(id), {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                done: true
+              })
             });
-            if(!res.ok){ var t = await res.text().catch(function(){return '';}); throw new Error(t||'Failed to mark done'); }
+            if (!res.ok) {
+              var t = await res.text().catch(function() {
+                return '';
+              });
+              throw new Error(t || 'Failed to mark done');
+            }
             // Remove from UI list
             item.parentNode.removeChild(item);
             // Show empty state if needed
             var remain = listEl.querySelector('.appt-item');
             var emptyMsg = document.getElementById('noApptMsg');
-            if(!remain && emptyMsg){ emptyMsg.style.display=''; }
-          }catch(err){ alert('Error: '+err.message); cb.checked=false; }
+            if (!remain && emptyMsg) {
+              emptyMsg.style.display = '';
+            }
+          } catch (err) {
+            alert('Error: ' + err.message);
+            cb.checked = false;
+          }
         });
       }
 
       // Periodically trigger due reminders -> append to doctor notifications
-      (function startReminderPolling(){
-        async function poll(){
-          try{
-            await fetch('/capstone/appointments/reminders.php?role=doctor&due=1', { cache: 'no-store' });
-          }catch(e){ /* silent */ }
+      (function startReminderPolling() {
+        async function poll() {
+          try {
+            await fetch('/capstone/appointments/reminders.php?role=doctor&due=1', {
+              cache: 'no-store'
+            });
+          } catch (e) {
+            /* silent */ }
         }
         // initial and every 15s
         poll();
@@ -471,7 +705,9 @@ try {
     <div style="background:linear-gradient(135deg,#0a5d39,#10b981);color:#fff;padding:16px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;gap:12px;">
       <h3 id="reminderTitle" style="margin:0;font-size:1.05rem;font-weight:700;">Set Reminder</h3>
       <button type="button" id="closeReminderModal" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
       </button>
     </div>
     <div style="padding:18px 20px;display:grid;gap:12px;">
@@ -487,4 +723,4 @@ try {
   </div>
 </div>
 
-<?php include __DIR__.'/../../includes/footer.php'; ?>
+<?php include __DIR__ . '/../../includes/footer.php'; ?>

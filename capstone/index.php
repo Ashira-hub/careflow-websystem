@@ -1,5 +1,5 @@
-<?php $page='Home'; 
-include __DIR__.'/includes/header.php'; ?>
+<?php $page = 'Home';
+include __DIR__ . '/includes/header.php'; ?>
 
 <section class="hero">
   <div class="container hero-grid">
@@ -35,4 +35,4 @@ include __DIR__.'/includes/header.php'; ?>
     </div>
   </div>
 </section>
-<?php include __DIR__.'/includes/footer.php'; ?>
+<?php include __DIR__ . '/includes/footer.php'; ?>

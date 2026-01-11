@@ -2,7 +2,9 @@
 // API endpoint for creating prescriptions in PostgreSQL
 header('Content-Type: application/json');
 require_once __DIR__ . '/../config/db.php';
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (session_status() === PHP_SESSION_NONE) {
+  session_start();
+}
 $uid = isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0;
 
 // Allow only POST requests
@@ -12,7 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   exit;
 }
 
-function json_body(): array {
+function json_body(): array
+{
   $raw = file_get_contents('php://input');
   if (!$raw) return [];
   $data = json_decode($raw, true);
@@ -40,11 +43,21 @@ $description = isset($b['description']) ? trim((string)$b['description']) : '';
 
 // Validate required fields
 $errors = [];
-if (empty($doctor_name)) { $errors[] = 'Doctor name is required'; }
-if (empty($patient_name)) { $errors[] = 'Patient name is required'; }
-if (empty($medicine)) { $errors[] = 'Medicine name is required'; }
-if (empty($quantity)) { $errors[] = 'Quantity prescribed is required'; }
-if (empty($dosage_strength)) { $errors[] = 'Dosage strength is required'; }
+if (empty($doctor_name)) {
+  $errors[] = 'Doctor name is required';
+}
+if (empty($patient_name)) {
+  $errors[] = 'Patient name is required';
+}
+if (empty($medicine)) {
+  $errors[] = 'Medicine name is required';
+}
+if (empty($quantity)) {
+  $errors[] = 'Quantity prescribed is required';
+}
+if (empty($dosage_strength)) {
+  $errors[] = 'Dosage strength is required';
+}
 
 if (!empty($errors)) {
   http_response_code(400);
@@ -107,19 +120,27 @@ try {
       ':dosage' => $dosage_strength,
       ':uid' => $uid,
     ]);
-  } catch (Throwable $e) { /* ignore patient_records errors */ }
+  } catch (Throwable $e) { /* ignore patient_records errors */
+  }
 
   // Session activity: log prescription submission
   try {
-    if (session_status() === PHP_SESSION_NONE) { session_start(); }
-    if (!isset($_SESSION['doctor_activity']) || !is_array($_SESSION['doctor_activity'])) { $_SESSION['doctor_activity'] = []; }
+    if (session_status() === PHP_SESSION_NONE) {
+      session_start();
+    }
+    if (!isset($_SESSION['doctor_activity']) || !is_array($_SESSION['doctor_activity'])) {
+      $_SESSION['doctor_activity'] = [];
+    }
     $ts = date('Y-m-d H:i:s');
     $meta = substr($ts, 0, 16);
     $title = 'Prescription submitted';
-    $body = ($patient_name !== '' ? ('Patient: '.$patient_name.' • ') : '') . 'Medicine: ' . $medicine;
-    $_SESSION['doctor_activity'][] = ['title'=>$title,'meta'=>$meta,'body'=>$body,'ts'=>$ts];
-    if (count($_SESSION['doctor_activity']) > 50) { $_SESSION['doctor_activity'] = array_slice($_SESSION['doctor_activity'], -50); }
-  } catch (Throwable $e) { }
+    $body = ($patient_name !== '' ? ('Patient: ' . $patient_name . ' • ') : '') . 'Medicine: ' . $medicine;
+    $_SESSION['doctor_activity'][] = ['title' => $title, 'meta' => $meta, 'body' => $body, 'ts' => $ts];
+    if (count($_SESSION['doctor_activity']) > 50) {
+      $_SESSION['doctor_activity'] = array_slice($_SESSION['doctor_activity'], -50);
+    }
+  } catch (Throwable $e) {
+  }
 
   http_response_code(201);
   echo json_encode(['success' => true, 'message' => 'Prescription created successfully', 'data' => $prescription]);
@@ -127,5 +148,3 @@ try {
   http_response_code(500);
   echo json_encode(['error' => 'Failed to create prescription: ' . $e->getMessage()]);
 }
-?>
-

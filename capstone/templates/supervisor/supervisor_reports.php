@@ -1,8 +1,11 @@
 <?php
-$page='Supervisor Reports';
-require_once __DIR__.'/../../config/db.php';
+$page = 'Supervisor Reports';
+require_once __DIR__ . '/../../config/db.php';
 
-function sr_escape($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+function sr_escape($v)
+{
+  return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+}
 
 $pdo = null;
 $nurseMap = [];
@@ -21,7 +24,7 @@ try {
   $nurseMap = [];
 }
 
-$requestFile = __DIR__.'/../../data/nurse_shift_requests.json';
+$requestFile = __DIR__ . '/../../data/nurse_shift_requests.json';
 $requests = [];
 if (file_exists($requestFile)) {
   $raw = file_get_contents($requestFile);
@@ -31,21 +34,22 @@ if (file_exists($requestFile)) {
   }
 }
 
-function sr_group_key($ts, $group){
-  if(!$ts) return 'Unknown';
-  if($group === 'month') return date('Y-m', $ts);
-  if($group === 'week') return date('o-\WW', $ts);
+function sr_group_key($ts, $group)
+{
+  if (!$ts) return 'Unknown';
+  if ($group === 'month') return date('Y-m', $ts);
+  if ($group === 'week') return date('o-\WW', $ts);
   return date('Y-m-d', $ts);
 }
 
 $from = isset($_GET['from']) ? trim((string)$_GET['from']) : '';
 $to = isset($_GET['to']) ? trim((string)$_GET['to']) : '';
 $group = isset($_GET['group']) ? strtolower((string)$_GET['group']) : 'day';
-$group = in_array($group, ['day','week','month'], true) ? $group : 'day';
+$group = in_array($group, ['day', 'week', 'month'], true) ? $group : 'day';
 $statusFilter = isset($_GET['status']) ? strtolower((string)$_GET['status']) : 'all';
 
-$fromTs = $from !== '' ? strtotime($from.' 00:00:00') : null;
-$toTs = $to !== '' ? strtotime($to.' 23:59:59') : null;
+$fromTs = $from !== '' ? strtotime($from . ' 00:00:00') : null;
+$toTs = $to !== '' ? strtotime($to . ' 23:59:59') : null;
 
 $normalized = [];
 foreach ($requests as $row) {
@@ -65,14 +69,14 @@ foreach ($requests as $row) {
     }
     $item['nurse_email'] = $nurseMap[$nurseId]['email'] ?? ($item['nurse_email'] ?? '');
   }
-  $combined = trim($item['date'].' '.$item['time']);
+  $combined = trim($item['date'] . ' ' . $item['time']);
   $ts = $combined !== '' ? strtotime($combined) : ($item['date'] !== '' ? strtotime($item['date']) : null);
   $item['ts'] = $ts ?: null;
   $normalized[] = $item;
 }
 
 $filtered = [];
-$statusCounters = ['request'=>0,'pending'=>0,'accepted'=>0,'rejected'=>0];
+$statusCounters = ['request' => 0, 'pending' => 0, 'accepted' => 0, 'rejected' => 0];
 $unitStats = [];
 $uniqueKeys = [];
 $grouped = [];
@@ -80,21 +84,25 @@ $dailyAccepted = [];
 
 foreach ($normalized as $item) {
   $ts = $item['ts'];
-  if(!$ts) continue;
-  if($fromTs && $ts < $fromTs) continue;
-  if($toTs && $ts > $toTs) continue;
+  if (!$ts) continue;
+  if ($fromTs && $ts < $fromTs) continue;
+  if ($toTs && $ts > $toTs) continue;
   $status = $item['status'];
-  if(!isset($statusCounters[$status])) { $status = 'request'; }
+  if (!isset($statusCounters[$status])) {
+    $status = 'request';
+  }
   $statusCounters[$status]++;
   $unit = $item['ward'] !== '' ? $item['ward'] : 'Unassigned';
-  if(!isset($unitStats[$unit])) {
-    $unitStats[$unit] = ['unit'=>$unit,'total'=>0,'accepted'=>0,'open'=>0,'rejected'=>0];
+  if (!isset($unitStats[$unit])) {
+    $unitStats[$unit] = ['unit' => $unit, 'total' => 0, 'accepted' => 0, 'open' => 0, 'rejected' => 0];
   }
   $unitStats[$unit]['total']++;
-  if($status === 'accepted') {
+  if ($status === 'accepted') {
     $unitStats[$unit]['accepted']++;
     $dayKey = date('Y-m-d', $ts);
-    if(!isset($dailyAccepted[$dayKey])) { $dailyAccepted[$dayKey] = 0; }
+    if (!isset($dailyAccepted[$dayKey])) {
+      $dailyAccepted[$dayKey] = 0;
+    }
     $dailyAccepted[$dayKey]++;
   } elseif ($status === 'rejected') {
     $unitStats[$unit]['rejected']++;
@@ -103,31 +111,41 @@ foreach ($normalized as $item) {
   }
   $key = '';
   $nurseId = (int)($item['nurse_id'] ?? 0);
-  if ($nurseId > 0) { $key = 'id:'.$nurseId; }
-  elseif (($item['nurse_email'] ?? '') !== '') { $key = 'email:'.strtolower((string)$item['nurse_email']); }
-  elseif ($item['nurse'] !== '') { $key = 'name:'.strtolower($item['nurse']); }
-  if ($key !== '') { $uniqueKeys[$key] = true; }
+  if ($nurseId > 0) {
+    $key = 'id:' . $nurseId;
+  } elseif (($item['nurse_email'] ?? '') !== '') {
+    $key = 'email:' . strtolower((string)$item['nurse_email']);
+  } elseif ($item['nurse'] !== '') {
+    $key = 'name:' . strtolower($item['nurse']);
+  }
+  if ($key !== '') {
+    $uniqueKeys[$key] = true;
+  }
   $groupKey = sr_group_key($ts, $group);
-  if(!isset($grouped[$groupKey])) { $grouped[$groupKey] = 0; }
+  if (!isset($grouped[$groupKey])) {
+    $grouped[$groupKey] = 0;
+  }
   $grouped[$groupKey]++;
   $filtered[] = $item;
 }
 
-usort($filtered, function($a, $b){
-  $aKey = ($a['date'] ?? '').' '.($a['time'] ?? '');
-  $bKey = ($b['date'] ?? '').' '.($b['time'] ?? '');
+usort($filtered, function ($a, $b) {
+  $aKey = ($a['date'] ?? '') . ' ' . ($a['time'] ?? '');
+  $bKey = ($b['date'] ?? '') . ' ' . ($b['time'] ?? '');
   return strcmp($bKey, $aKey);
 });
 
 ksort($grouped);
 $activityList = [];
 foreach ($grouped as $label => $value) {
-  $activityList[] = ['label'=>$label, 'value'=>$value];
+  $activityList[] = ['label' => $label, 'value' => $value];
 }
 $activityList = array_slice($activityList, -12);
 $activityMax = 0;
 foreach ($activityList as $entry) {
-  if ($entry['value'] > $activityMax) { $activityMax = $entry['value']; }
+  if ($entry['value'] > $activityMax) {
+    $activityMax = $entry['value'];
+  }
 }
 
 $totalRequests = count($filtered);
@@ -149,16 +167,18 @@ foreach ($filtered as $it) {
   list($eh, $em) = array_pad(explode(':', $end, 2), 2, '0');
   $sMin = ((int)$sh) * 60 + ((int)$sm);
   $eMin = ((int)$eh) * 60 + ((int)$em);
-  if ($eMin < $sMin) { $eMin += 24 * 60; }
+  if ($eMin < $sMin) {
+    $eMin += 24 * 60;
+  }
   $totalHours += max(0, ($eMin - $sMin)) / 60.0;
 }
 
 $unitRows = array_values($unitStats);
-usort($unitRows, function($a, $b){
+usort($unitRows, function ($a, $b) {
   return $b['total'] <=> $a['total'];
 });
 
-include __DIR__.'/../../includes/header.php';
+include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="layout-sidebar full-bleed" style="padding: 24px 20px;">
@@ -227,7 +247,7 @@ include __DIR__.'/../../includes/header.php';
             </tr>
           </thead>
           <tbody id="topNursesList">
-            <?php 
+            <?php
             // Get top nurses by accepted shifts
             $nurseStats = [];
             foreach ($filtered as $item) {
@@ -240,7 +260,9 @@ include __DIR__.'/../../includes/header.php';
             $topNurses = array_slice($nurseStats, 0, 10, true);
             ?>
             <?php if (empty($topNurses)): ?>
-              <tr><td colspan="2" class="muted" style="text-align:center;padding:20px;color:#64748b;">No data</td></tr>
+              <tr>
+                <td colspan="2" class="muted" style="text-align:center;padding:20px;color:#64748b;">No data</td>
+              </tr>
             <?php else: ?>
               <?php foreach ($topNurses as $nurseName => $count): ?>
                 <tr style="border-bottom:1px solid #f1f5f9;">
@@ -257,110 +279,134 @@ include __DIR__.'/../../includes/header.php';
   </div>
 </div>
 
-<?php include __DIR__.'/../../includes/footer.php'; ?>
+<?php include __DIR__ . '/../../includes/footer.php'; ?>
 
 <script>
-(function(){
-  var currentMonthYear = document.getElementById('currentMonthYear');
-  var prevMonthBtn = document.getElementById('prevMonth');
-  var nextMonthBtn = document.getElementById('nextMonth');
-  var statNurses = document.getElementById('statNurses');
-  var statShifts = document.getElementById('statShifts');
-  var statTotalHours = document.getElementById('statTotalHours');
-  var topNursesList = document.getElementById('topNursesList');
+  (function() {
+    var currentMonthYear = document.getElementById('currentMonthYear');
+    var prevMonthBtn = document.getElementById('prevMonth');
+    var nextMonthBtn = document.getElementById('nextMonth');
+    var statNurses = document.getElementById('statNurses');
+    var statShifts = document.getElementById('statShifts');
+    var statTotalHours = document.getElementById('statTotalHours');
+    var topNursesList = document.getElementById('topNursesList');
 
-  var scheduleData = <?php echo json_encode($filtered); ?>;
-  var currentDate = new Date();
+    var scheduleData = <?php echo json_encode($filtered); ?>;
+    var currentDate = new Date();
 
-  function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
-  function getDatePart(ts){ return (ts||'').slice(0,10); }
-  function getCurrentMonthYear(){
-    var monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                     'July', 'August', 'September', 'October', 'November', 'December'];
-    return monthNames[currentDate.getMonth()] + ' ' + currentDate.getFullYear();
-  }
-  
-  function updateMonthDisplay(){
-    if(currentMonthYear) {
-      currentMonthYear.textContent = getCurrentMonthYear();
+    function escapeHtml(s) {
+      return (s || '').replace(/[&<>"]/g, function(c) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;'
+        } [c];
+      });
     }
-  }
-  
-  function navigateMonth(direction){
-    if(direction === 'prev'){
-      currentDate.setMonth(currentDate.getMonth() - 1);
-    } else if(direction === 'next'){
-      currentDate.setMonth(currentDate.getMonth() + 1);
+
+    function getDatePart(ts) {
+      return (ts || '').slice(0, 10);
     }
-    updateMonthDisplay();
-    renderStats();
-  }
-  
-  function renderStats(){
-    // Filter data by selected month
-    var selectedMonth = currentDate.getFullYear() + '-' + String(currentDate.getMonth() + 1).padStart(2, '0');
-    var monthData = scheduleData.filter(function(item){ 
-      var recordMonth = (item.date||'').slice(0,7); // YYYY-MM
-      return recordMonth === selectedMonth;
-    });
-    
-    // Calculate stats
-    var uniqueNurses = new Set();
-    var acceptedCount = 0;
-    var totalHours = 0;
-    var nurseStats = {};
-    
-    monthData.forEach(function(item){
-      if(item.nurse) uniqueNurses.add(item.nurse);
-      if(item.status === 'accepted') {
-        acceptedCount++;
-        nurseStats[item.nurse] = (nurseStats[item.nurse] || 0) + 1;
-        var s = item.time || '';
-        var e = item.end_time || '';
-        if(s && e){
-          var sp = s.split(':'), ep = e.split(':');
-          var sMin = parseInt(sp[0]||'0',10)*60 + parseInt(sp[1]||'0',10);
-          var eMin = parseInt(ep[0]||'0',10)*60 + parseInt(ep[1]||'0',10);
-          if(eMin < sMin) eMin += 24*60; // overnight
-          totalHours += Math.max(0, (eMin - sMin))/60;
+
+    function getCurrentMonthYear() {
+      var monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return monthNames[currentDate.getMonth()] + ' ' + currentDate.getFullYear();
+    }
+
+    function updateMonthDisplay() {
+      if (currentMonthYear) {
+        currentMonthYear.textContent = getCurrentMonthYear();
+      }
+    }
+
+    function navigateMonth(direction) {
+      if (direction === 'prev') {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+      } else if (direction === 'next') {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+      updateMonthDisplay();
+      renderStats();
+    }
+
+    function renderStats() {
+      // Filter data by selected month
+      var selectedMonth = currentDate.getFullYear() + '-' + String(currentDate.getMonth() + 1).padStart(2, '0');
+      var monthData = scheduleData.filter(function(item) {
+        var recordMonth = (item.date || '').slice(0, 7); // YYYY-MM
+        return recordMonth === selectedMonth;
+      });
+
+      // Calculate stats
+      var uniqueNurses = new Set();
+      var acceptedCount = 0;
+      var totalHours = 0;
+      var nurseStats = {};
+
+      monthData.forEach(function(item) {
+        if (item.nurse) uniqueNurses.add(item.nurse);
+        if (item.status === 'accepted') {
+          acceptedCount++;
+          nurseStats[item.nurse] = (nurseStats[item.nurse] || 0) + 1;
+          var s = item.time || '';
+          var e = item.end_time || '';
+          if (s && e) {
+            var sp = s.split(':'),
+              ep = e.split(':');
+            var sMin = parseInt(sp[0] || '0', 10) * 60 + parseInt(sp[1] || '0', 10);
+            var eMin = parseInt(ep[0] || '0', 10) * 60 + parseInt(ep[1] || '0', 10);
+            if (eMin < sMin) eMin += 24 * 60; // overnight
+            totalHours += Math.max(0, (eMin - sMin)) / 60;
+          }
+        }
+      });
+
+      // Update stat cards
+      if (statNurses) statNurses.textContent = uniqueNurses.size;
+      if (statShifts) statShifts.textContent = acceptedCount;
+      if (statTotalHours) statTotalHours.textContent = totalHours.toFixed(1);
+
+      // Update top nurses list
+      if (topNursesList) {
+        topNursesList.innerHTML = '';
+        var topNurses = Object.keys(nurseStats)
+          .map(function(name) {
+            return {
+              name: name,
+              count: nurseStats[name]
+            };
+          })
+          .sort(function(a, b) {
+            return b.count - a.count;
+          })
+          .slice(0, 10);
+
+        if (topNurses.length === 0) {
+          topNursesList.innerHTML = '<tr><td colspan="2" class="muted" style="text-align:center;padding:20px;color:#64748b;">No data</td></tr>';
+        } else {
+          topNurses.forEach(function(nurse) {
+            var tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #f1f5f9';
+            tr.innerHTML = '<td style="padding:8px 0;color:#0f172a;font-size:0.9rem;">' + escapeHtml(nurse.name) + '</td><td style="padding:8px 0;text-align:right;color:#64748b;font-size:0.9rem;font-weight:600;">' + escapeHtml(String(nurse.count)) + '</td>';
+            topNursesList.appendChild(tr);
+          });
         }
       }
-    });
-    
-    // Update stat cards
-    if(statNurses) statNurses.textContent = uniqueNurses.size;
-    if(statShifts) statShifts.textContent = acceptedCount;
-    if(statTotalHours) statTotalHours.textContent = totalHours.toFixed(1);
-    
-    // Update top nurses list
-    if(topNursesList) {
-      topNursesList.innerHTML = '';
-      var topNurses = Object.keys(nurseStats)
-        .map(function(name) { return { name: name, count: nurseStats[name] }; })
-        .sort(function(a, b) { return b.count - a.count; })
-        .slice(0, 10);
-      
-      if(topNurses.length === 0) {
-        topNursesList.innerHTML = '<tr><td colspan="2" class="muted" style="text-align:center;padding:20px;color:#64748b;">No data</td></tr>';
-      } else {
-        topNurses.forEach(function(nurse) {
-          var tr = document.createElement('tr');
-          tr.style.borderBottom = '1px solid #f1f5f9';
-          tr.innerHTML = '<td style="padding:8px 0;color:#0f172a;font-size:0.9rem;">' + escapeHtml(nurse.name) + '</td><td style="padding:8px 0;text-align:right;color:#64748b;font-size:0.9rem;font-weight:600;">' + escapeHtml(String(nurse.count)) + '</td>';
-          topNursesList.appendChild(tr);
-        });
-      }
     }
-  }
-  
-  // Add event listeners for navigation
-  if(prevMonthBtn) prevMonthBtn.addEventListener('click', function(){ navigateMonth('prev'); });
-  if(nextMonthBtn) nextMonthBtn.addEventListener('click', function(){ navigateMonth('next'); });
-  
-  // Initialize
-  updateMonthDisplay();
-  renderStats();
-})();
+
+    // Add event listeners for navigation
+    if (prevMonthBtn) prevMonthBtn.addEventListener('click', function() {
+      navigateMonth('prev');
+    });
+    if (nextMonthBtn) nextMonthBtn.addEventListener('click', function() {
+      navigateMonth('next');
+    });
+
+    // Initialize
+    updateMonthDisplay();
+    renderStats();
+  })();
 </script>
-
-

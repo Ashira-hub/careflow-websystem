@@ -1,4 +1,5 @@
-<?php $page='Admin Settings'; include __DIR__.'/../../includes/header.php'; ?>
+<?php $page = 'Admin Settings';
+include __DIR__ . '/../../includes/header.php'; ?>
 
 <div class="layout-sidebar full-bleed" style="padding: 24px 20px;">
   <aside class="sidebar">
@@ -52,20 +53,22 @@
       </div>
     </section>
 
-    
 
-    
+
+
   </div>
 </div>
 
 <!-- Toggle Switch Styles -->
 <style>
-  .toggle-switch input:checked + .toggle-slider {
+  .toggle-switch input:checked+.toggle-slider {
     background-color: #10b981;
   }
-  .toggle-switch input:not(:checked) + .toggle-slider {
+
+  .toggle-switch input:not(:checked)+.toggle-slider {
     background-color: #94a3b8;
   }
+
   .toggle-slider:before {
     position: absolute;
     content: "";
@@ -77,31 +80,32 @@
     transition: 0.3s;
     border-radius: 50%;
   }
-  .toggle-switch input:checked + .toggle-slider:before {
+
+  .toggle-switch input:checked+.toggle-slider:before {
     transform: translateX(22px);
   }
 </style>
 
 <script>
-(function(){
-  // Wire Admin Dark Mode toggle to localStorage and reload across /admin/ pages
-  var darkToggle = document.getElementById('darkMode');
-  if(darkToggle){
-    try{
-      // Initialize from stored preference
-      var isOn = localStorage.getItem('adminDarkMode') === '1';
-      darkToggle.checked = isOn;
-      // Persist on change and reload to apply in header
-      darkToggle.addEventListener('change', function(){
-        if(this.checked){
-          localStorage.setItem('adminDarkMode','1');
-        } else {
-          localStorage.removeItem('adminDarkMode');
-        }
-        location.reload();
-      });
-    }catch(e){ /* no-op */ }
-  }
-})();
+  (function() {
+    // Wire Admin Dark Mode toggle to localStorage and reload across /admin/ pages
+    var darkToggle = document.getElementById('darkMode');
+    if (darkToggle) {
+      try {
+        // Initialize from stored preference
+        var isOn = localStorage.getItem('adminDarkMode') === '1';
+        darkToggle.checked = isOn;
+        // Persist on change and reload to apply in header
+        darkToggle.addEventListener('change', function() {
+          if (this.checked) {
+            localStorage.setItem('adminDarkMode', '1');
+          } else {
+            localStorage.removeItem('adminDarkMode');
+          }
+          location.reload();
+        });
+      } catch (e) {
+        /* no-op */ }
+    }
+  })();
 </script>
-

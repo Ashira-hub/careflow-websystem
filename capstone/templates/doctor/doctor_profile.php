@@ -1,7 +1,9 @@
 <?php
-$page='Doctor Profile';
-require_once __DIR__.'/../../config/db.php';
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+$page = 'Doctor Profile';
+require_once __DIR__ . '/../../config/db.php';
+if (session_status() === PHP_SESSION_NONE) {
+  session_start();
+}
 // Prevent caching so updates reflect immediately after save/logout
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
@@ -24,9 +26,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $newAvatarUri = null; // will hold the saved avatar path if uploaded
 
   $errors = [];
-  if ($fullName === '') { $errors[] = 'Full name is required.'; }
-  if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) { $errors[] = 'A valid email address is required.'; }
-  if ($birthDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $birthDate)) { $errors[] = 'Birth date must be in YYYY-MM-DD format.'; }
+  if ($fullName === '') {
+    $errors[] = 'Full name is required.';
+  }
+  if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $errors[] = 'A valid email address is required.';
+  }
+  if ($birthDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $birthDate)) {
+    $errors[] = 'Birth date must be in YYYY-MM-DD format.';
+  }
 
   if ($errors) {
     $_SESSION['flash_error'] = implode("\n", $errors);
@@ -47,16 +55,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $finfo = new finfo(FILEINFO_MIME_TYPE);
       $mime = (string)$finfo->file($tmp);
       $ext = '';
-      if ($mime === 'image/jpeg') { $ext = 'jpg'; }
-      elseif ($mime === 'image/png') { $ext = 'png'; }
-      elseif ($mime === 'image/webp') { $ext = 'webp'; }
-      else { throw new RuntimeException('Unsupported avatar format. Allowed: JPG, PNG, WEBP'); }
+      if ($mime === 'image/jpeg') {
+        $ext = 'jpg';
+      } elseif ($mime === 'image/png') {
+        $ext = 'png';
+      } elseif ($mime === 'image/webp') {
+        $ext = 'webp';
+      } else {
+        throw new RuntimeException('Unsupported avatar format. Allowed: JPG, PNG, WEBP');
+      }
       $uploadDir = realpath(__DIR__ . '/../../');
       $destDir = $uploadDir !== false ? $uploadDir . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars' : __DIR__ . '/../../uploads/avatars';
-      if (!is_dir($destDir)) { @mkdir($destDir, 0775, true); }
+      if (!is_dir($destDir)) {
+        @mkdir($destDir, 0775, true);
+      }
       $fileName = 'u' . $userId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
       $destPath = rtrim($destDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $fileName;
-      if (!move_uploaded_file($tmp, $destPath)) { throw new RuntimeException('Failed to save uploaded avatar.'); }
+      if (!move_uploaded_file($tmp, $destPath)) {
+        throw new RuntimeException('Failed to save uploaded avatar.');
+      }
       // Web path used by app
       $newAvatarUri = '/capstone/uploads/avatars/' . $fileName;
     } catch (Throwable $e) {
@@ -141,33 +158,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $_SESSION['user']['full_name'] = $fullName;
     $_SESSION['user']['email'] = $email;
-    if ($newAvatarUri !== null) { $_SESSION['user']['avatar_uri'] = $newAvatarUri; }
+    if ($newAvatarUri !== null) {
+      $_SESSION['user']['avatar_uri'] = $newAvatarUri;
+    }
     $_SESSION['user']['name'] = $fullName;
 
     // Session activity: log profile update
     try {
-      if (!isset($_SESSION['doctor_activity']) || !is_array($_SESSION['doctor_activity'])) { $_SESSION['doctor_activity'] = []; }
+      if (!isset($_SESSION['doctor_activity']) || !is_array($_SESSION['doctor_activity'])) {
+        $_SESSION['doctor_activity'] = [];
+      }
       $ts = date('Y-m-d H:i:s');
       $meta = substr($ts, 0, 16);
       $title = 'Profile updated';
       $body = 'Updated name/email/profile details';
-      $_SESSION['doctor_activity'][] = ['title'=>$title,'meta'=>$meta,'body'=>$body,'ts'=>$ts];
-      if (count($_SESSION['doctor_activity']) > 50) { $_SESSION['doctor_activity'] = array_slice($_SESSION['doctor_activity'], -50); }
-    } catch (Throwable $e) { }
+      $_SESSION['doctor_activity'][] = ['title' => $title, 'meta' => $meta, 'body' => $body, 'ts' => $ts];
+      if (count($_SESSION['doctor_activity']) > 50) {
+        $_SESSION['doctor_activity'] = array_slice($_SESSION['doctor_activity'], -50);
+      }
+    } catch (Throwable $e) {
+    }
 
     $_SESSION['flash_success'] = 'Profile updated successfully.';
   } catch (Throwable $e) {
     if (isset($pdo) && $pdo->inTransaction()) {
       $pdo->rollBack();
     }
-    $_SESSION['flash_error'] = 'Failed to update profile: '.$e->getMessage();
+    $_SESSION['flash_error'] = 'Failed to update profile: ' . $e->getMessage();
   }
 
   header('Location: /capstone/templates/doctor/doctor_profile.php');
   exit;
 }
 
-$profile = ['phone'=>'','address'=>'','birthdate'=>'','gender'=>''];
+$profile = ['phone' => '', 'address' => '', 'birthdate' => '', 'gender' => ''];
 if (!empty($_SESSION['user']['id'])) {
   try {
     $pdo = get_pdo();
@@ -200,7 +224,7 @@ if (!empty($_SESSION['user']['id'])) {
   }
 }
 
-include __DIR__.'/../../includes/header.php';
+include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="layout-sidebar full-bleed" style="padding: 24px 20px;">
@@ -221,11 +245,11 @@ include __DIR__.'/../../includes/header.php';
 
   <div>
     <?php
-      $full = $_SESSION['user']['full_name'] ?? '';
-      $parts = preg_split('/\s+/', trim((string)$full));
-      $firstName = $parts[0] ?? '';
-      $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
-      $roleName = isset($_SESSION['user']['role']) ? ucwords(str_replace('_',' ', $_SESSION['user']['role'])) : 'Doctor';
+    $full = $_SESSION['user']['full_name'] ?? '';
+    $parts = preg_split('/\s+/', trim((string)$full));
+    $firstName = $parts[0] ?? '';
+    $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
+    $roleName = isset($_SESSION['user']['role']) ? ucwords(str_replace('_', ' ', $_SESSION['user']['role'])) : 'Doctor';
     ?>
     <div class="profile-header" style="background:linear-gradient(135deg,#ffffff,#f8fafc);border:1px solid #e2e8f0;border-radius:20px;padding:32px;box-shadow:0 8px 24px rgba(0,0,0,0.08);margin-bottom:24px;">
       <div class="profile-left" style="display:flex;align-items:center;gap:24px;">
@@ -238,8 +262,8 @@ include __DIR__.'/../../includes/header.php';
           <?php endif; ?>
           <div style="position:absolute;bottom:-4px;right:-4px;width:24px;height:24px;background:#10b981;border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff;">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
             </svg>
           </div>
         </div>
@@ -254,10 +278,12 @@ include __DIR__.'/../../includes/header.php';
     </div>
 
     <?php if (!empty($_SESSION['flash_error'])): ?>
-      <div class="alert alert-error"><?php echo nl2br(htmlspecialchars($_SESSION['flash_error'])); unset($_SESSION['flash_error']); ?></div>
+      <div class="alert alert-error"><?php echo nl2br(htmlspecialchars($_SESSION['flash_error']));
+                                      unset($_SESSION['flash_error']); ?></div>
     <?php endif; ?>
     <?php if (!empty($_SESSION['flash_success'])): ?>
-      <div class="alert" style="border-color:#bbf7d0;background:#ecfdf5;color:#065f46;"><?php echo nl2br(htmlspecialchars($_SESSION['flash_success'])); unset($_SESSION['flash_success']); ?></div>
+      <div class="alert" style="border-color:#bbf7d0;background:#ecfdf5;color:#065f46;"><?php echo nl2br(htmlspecialchars($_SESSION['flash_success']));
+                                                                                        unset($_SESSION['flash_success']); ?></div>
     <?php endif; ?>
 
     <h4 class="profile-section-title" style="color:#0a5d39;font-size:1.2rem;font-weight:700;margin-bottom:20px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">Doctor Information</h4>
@@ -292,7 +318,7 @@ include __DIR__.'/../../includes/header.php';
       </div>
     </div>
 
-    
+
   </div>
 </div>
 
@@ -308,12 +334,12 @@ include __DIR__.'/../../includes/header.php';
         </div>
         <button type="button" id="closeProfileModal" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color 0.2s ease;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.3)'" onmouseout="this.style.backgroundColor='rgba(255,255,255,0.2)'">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 6L6 18M6 6l12 12"/>
+            <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
       </div>
     </div>
-    
+
     <form id="profileForm" method="post" action="#" enctype="multipart/form-data" style="margin:0;">
       <div style="padding:28px;max-height:70vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#0a5d39 #f1f5f9;" class="scrollable-content">
         <!-- Avatar Section -->
@@ -330,14 +356,14 @@ include __DIR__.'/../../includes/header.php';
             <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display:none;" />
             <button type="button" id="changeAvatarBtn" style="position:absolute;bottom:8px;right:8px;width:36px;height:36px;border-radius:50%;background:#fff;border:2px solid #0a5d39;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 8px rgba(0,0,0,0.15);transition:all 0.2s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#0a5d39;">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
               </svg>
             </button>
           </div>
           <div style="color:#64748b;font-size:0.9rem;font-weight:500;">Click the camera icon to change your avatar</div>
         </div>
-        
+
         <!-- Form Fields -->
         <div style="display:grid;gap:20px;">
           <!-- Full Name -->
@@ -345,31 +371,31 @@ include __DIR__.'/../../includes/header.php';
             <label for="full_name" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Full Name</label>
             <input type="text" id="full_name" name="full_name" value="<?php echo htmlspecialchars($_SESSION['user']['full_name'] ?? ''); ?>" required style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
           </div>
-          
+
           <!-- Role (Read-only) -->
           <div class="form-field">
             <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Role</label>
             <input type="text" value="<?php echo htmlspecialchars($roleName); ?>" readonly style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;background:#f1f5f9;color:#64748b;cursor:not-allowed;" />
           </div>
-          
+
           <!-- Email -->
           <div class="form-field">
             <label for="email" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Email Address</label>
             <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($_SESSION['user']['email'] ?? ''); ?>" required style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
-        </div>
-          
+          </div>
+
           <!-- Phone -->
           <div class="form-field">
             <label for="phone" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Phone Number</label>
             <input type="tel" id="phone" name="phone" value="<?php echo htmlspecialchars($profile['phone'] ?? ''); ?>" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
           </div>
-          
+
           <!-- Birth Date -->
           <div class="form-field">
             <label for="birth_date" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Birth Date</label>
             <input type="date" id="birth_date" name="birth_date" value="<?php echo htmlspecialchars($profile['birthdate'] ?? ''); ?>" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
           </div>
-          
+
           <!-- Gender -->
           <div class="form-field">
             <label for="gender" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Gender</label>
@@ -380,7 +406,7 @@ include __DIR__.'/../../includes/header.php';
               <option value="Other" <?php echo ($profile['gender'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
             </select>
           </div>
-          
+
           <!-- Address -->
           <div class="form-field">
             <label for="address" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Address</label>
@@ -388,7 +414,7 @@ include __DIR__.'/../../includes/header.php';
           </div>
         </div>
       </div>
-      
+
       <!-- Modal Footer -->
       <div style="display:flex;justify-content:flex-end;gap:12px;padding:20px 28px;border-top:1px solid #e5e7eb;background:linear-gradient(135deg,#f8fafc,#f1f5f9);">
         <button type="button" class="btn btn-outline" id="cancelProfileModal" style="padding:10px 20px;border-radius:10px;font-weight:600;">Cancel</button>
@@ -399,141 +425,184 @@ include __DIR__.'/../../includes/header.php';
 </div>
 
 <script>
-(function(){
-  var openBtn = document.getElementById('openProfileModal');
-  var modal = document.getElementById('profileModal');
-  var closeBtn = document.getElementById('closeProfileModal');
-  var cancelBtn = document.getElementById('cancelProfileModal');
-  var backdrop = modal ? modal.querySelector('[data-backdrop]') : null;
-  var changeAvatarBtn = document.getElementById('changeAvatarBtn');
-  var avatarInput = document.getElementById('avatarInput');
-  var avatarPreview = document.getElementById('avatarPreview');
-  
-  function open(){ if(modal){ modal.style.display = 'block'; document.body.style.overflow='hidden'; } }
-  function close(){ if(modal){ modal.style.display = 'none'; document.body.style.overflow=''; } }
-  
-  if(openBtn){ openBtn.addEventListener('click', function(e){ e.preventDefault(); open(); }); }
-  if(closeBtn){ closeBtn.addEventListener('click', function(){ close(); }); }
-  if(cancelBtn){ cancelBtn.addEventListener('click', function(){ close(); }); }
-  if(backdrop){ backdrop.addEventListener('click', function(){ close(); }); }
-  
-  // Avatar change functionality
-  if(changeAvatarBtn && avatarInput){
-    changeAvatarBtn.addEventListener('click', function(){
-      avatarInput.click();
+  (function() {
+    var openBtn = document.getElementById('openProfileModal');
+    var modal = document.getElementById('profileModal');
+    var closeBtn = document.getElementById('closeProfileModal');
+    var cancelBtn = document.getElementById('cancelProfileModal');
+    var backdrop = modal ? modal.querySelector('[data-backdrop]') : null;
+    var changeAvatarBtn = document.getElementById('changeAvatarBtn');
+    var avatarInput = document.getElementById('avatarInput');
+    var avatarPreview = document.getElementById('avatarPreview');
+
+    function open() {
+      if (modal) {
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    function close() {
+      if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+    }
+
+    if (openBtn) {
+      openBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        open();
+      });
+    }
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function() {
+        close();
+      });
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function() {
+        close();
+      });
+    }
+    if (backdrop) {
+      backdrop.addEventListener('click', function() {
+        close();
+      });
+    }
+
+    // Avatar change functionality
+    if (changeAvatarBtn && avatarInput) {
+      changeAvatarBtn.addEventListener('click', function() {
+        avatarInput.click();
+      });
+
+      avatarInput.addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (file) {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            var img = avatarPreview.querySelector('img');
+            if (img) {
+              img.src = e.target.result;
+              img.style.width = '60px';
+              img.style.height = '60px';
+              img.style.objectFit = 'cover';
+              img.style.borderRadius = '50%';
+              img.style.filter = 'none';
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && modal && modal.style.display === 'block') {
+        close();
+      }
     });
-    
-    avatarInput.addEventListener('change', function(e){
-      var file = e.target.files[0];
-      if(file){
-        var reader = new FileReader();
-        reader.onload = function(e){
-          var img = avatarPreview.querySelector('img');
-          if(img){
-            img.src = e.target.result;
-            img.style.width = '60px';
-            img.style.height = '60px';
-            img.style.objectFit = 'cover';
-            img.style.borderRadius = '50%';
-            img.style.filter = 'none';
+
+    // Client-side apply of updates to visible fields
+    var form = document.getElementById('profileForm');
+    if (form) {
+      form.addEventListener('submit', function(ev) {
+        ev.preventDefault();
+        var v = function(id) {
+          var el = document.getElementById(id);
+          return el ? el.value.trim() : '';
+        };
+        var fullName = v('full_name');
+        var email = v('email');
+        var phone = v('phone');
+        var address = v('address');
+        var birth = v('birth_date');
+        var gender = v('gender');
+
+        // Update header display
+        var nameEl = document.querySelector('.profile-name');
+        if (nameEl && fullName) {
+          nameEl.textContent = fullName;
+        }
+        var emailEl = document.querySelector('.profile-email');
+        if (emailEl && email) {
+          emailEl.textContent = email;
+        }
+
+        // Update info table
+        var setText = function(sel, val) {
+          var el = document.getElementById(sel);
+          if (el !== null) {
+            el.textContent = val;
           }
         };
-        reader.readAsDataURL(file);
-      }
-    });
-  }
-  
-  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && modal && modal.style.display === 'block'){ close(); } });
+        setText('info_full_name', fullName);
+        setText('info_email', email);
+        setText('info_phone', phone);
+        setText('info_address', address);
+        setText('info_birth', birth);
+        setText('info_gender', gender);
 
-  // Client-side apply of updates to visible fields
-  var form = document.getElementById('profileForm');
-  if(form){
-    form.addEventListener('submit', function(ev){
-      ev.preventDefault();
-      var v = function(id){ var el=document.getElementById(id); return el? el.value.trim():''; };
-      var fullName = v('full_name');
-      var email = v('email');
-      var phone = v('phone');
-      var address = v('address');
-      var birth = v('birth_date');
-      var gender = v('gender');
-      
-      // Update header display
-      var nameEl = document.querySelector('.profile-name');
-      if(nameEl && fullName){ nameEl.textContent = fullName; }
-      var emailEl = document.querySelector('.profile-email');
-      if(emailEl && email){ emailEl.textContent = email; }
-      
-      // Update info table
-      var setText = function(sel, val){ var el=document.getElementById(sel); if(el!==null){ el.textContent = val; } };
-      setText('info_full_name', fullName);
-      setText('info_email', email);
-      setText('info_phone', phone);
-      setText('info_address', address);
-      setText('info_birth', birth);
-      setText('info_gender', gender);
+        // Update main profile avatar if changed
+        var mainAvatar = document.querySelector('.avatar');
+        if (mainAvatar && avatarInput.files[0]) {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            mainAvatar.innerHTML = '<img src="' + e.target.result + '" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+          };
+          reader.readAsDataURL(avatarInput.files[0]);
+        }
 
-      // Update main profile avatar if changed
-      var mainAvatar = document.querySelector('.avatar');
-      if(mainAvatar && avatarInput.files[0]){
-        var reader = new FileReader();
-        reader.onload = function(e){
-          mainAvatar.innerHTML = '<img src="'+e.target.result+'" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
-        };
-        reader.readAsDataURL(avatarInput.files[0]);
-      }
-
-      // Submit the form
-      form.submit();
-    });
-  }
-})();
+        // Submit the form
+        form.submit();
+      });
+    }
+  })();
 </script>
 
 <style>
-/* Custom scrollbar styling for the modal */
-.scrollable-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.scrollable-content::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
-
-.scrollable-content::-webkit-scrollbar-thumb {
-  background: #0a5d39;
-  border-radius: 4px;
-  transition: background 0.2s ease;
-}
-
-.scrollable-content::-webkit-scrollbar-thumb:hover {
-  background: #059669;
-}
-
-/* Ensure modal is fully scrollable on mobile */
-@media (max-height: 600px) {
-  #profileModal {
-    padding: 10px;
+  /* Custom scrollbar styling for the modal */
+  .scrollable-content::-webkit-scrollbar {
+    width: 8px;
   }
-  
-  #profileModal > div[role="dialog"] {
-    margin: 10px auto;
-    max-height: 95vh;
-  }
-  
-  .scrollable-content {
-    max-height: 60vh !important;
-  }
-}
 
-@media (max-width: 768px) {
-  #profileModal > div[role="dialog"] {
-    margin: 10px;
-    max-width: calc(100% - 20px);
+  .scrollable-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
   }
-}
+
+  .scrollable-content::-webkit-scrollbar-thumb {
+    background: #0a5d39;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  .scrollable-content::-webkit-scrollbar-thumb:hover {
+    background: #059669;
+  }
+
+  /* Ensure modal is fully scrollable on mobile */
+  @media (max-height: 600px) {
+    #profileModal {
+      padding: 10px;
+    }
+
+    #profileModal>div[role="dialog"] {
+      margin: 10px auto;
+      max-height: 95vh;
+    }
+
+    .scrollable-content {
+      max-height: 60vh !important;
+    }
+  }
+
+  @media (max-width: 768px) {
+    #profileModal>div[role="dialog"] {
+      margin: 10px;
+      max-width: calc(100% - 20px);
+    }
+  }
 </style>
 
-<?php include __DIR__.'/../../includes/footer.php'; ?>
-
+<?php include __DIR__ . '/../../includes/footer.php'; ?>

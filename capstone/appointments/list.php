@@ -1,5 +1,7 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (session_status() === PHP_SESSION_NONE) {
+  session_start();
+}
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/db.php';
@@ -14,10 +16,10 @@ try {
   $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
   $stmt->execute();
   $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-  echo json_encode([ 'items' => $rows ]);
+  echo json_encode(['items' => $rows]);
   exit;
 } catch (Throwable $e) {
   http_response_code(500);
-  echo json_encode([ 'error' => 'Failed to load appointments' ]);
+  echo json_encode(['error' => 'Failed to load appointments']);
   exit;
 }

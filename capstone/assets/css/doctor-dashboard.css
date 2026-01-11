@@ -60,8 +60,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .activity-empty {
@@ -87,7 +91,7 @@
   background: #f8fafc;
   border-color: #e2e8f0;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 @keyframes fadeInUp {
@@ -174,18 +178,18 @@
   .doctor-dashboard-layout {
     padding: 16px 12px;
   }
-  
+
   .recent-activity-header {
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
   }
-  
+
   .activity-item {
     padding: 10px;
     gap: 10px;
   }
-  
+
   .activity-icon {
     width: 36px;
     height: 36px;

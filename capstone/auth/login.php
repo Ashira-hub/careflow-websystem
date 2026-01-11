@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (session_status() === PHP_SESSION_NONE) {
+  session_start();
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   header('Location: /capstone/login.php');
@@ -42,8 +44,11 @@ if ($email === 'admin@gmail.com' && $password === 'Admin123') {
       $a = $pdo->prepare('SELECT avatar_uri FROM profile WHERE id = :id LIMIT 1');
       $a->execute([':id' => $userId]);
       $prow = $a->fetch();
-      if ($prow && isset($prow['avatar_uri'])) { $avatar = (string)$prow['avatar_uri']; }
-    } catch (Throwable $_) { /* ignore */ }
+      if ($prow && isset($prow['avatar_uri'])) {
+        $avatar = (string)$prow['avatar_uri'];
+      }
+    } catch (Throwable $_) { /* ignore */
+    }
 
     $_SESSION['user'] = [
       'id' => $userId,
@@ -83,12 +88,18 @@ try {
 
   if ($user['role'] === 'labstaff') {
     $storeDir = __DIR__ . '/../data';
-    if (!is_dir($storeDir)) { @mkdir($storeDir, 0777, true); }
+    if (!is_dir($storeDir)) {
+      @mkdir($storeDir, 0777, true);
+    }
     $storeFile = $storeDir . '/notifications_laboratory.json';
-    if (!file_exists($storeFile)) { @file_put_contents($storeFile, json_encode([])); }
+    if (!file_exists($storeFile)) {
+      @file_put_contents($storeFile, json_encode([]));
+    }
     $raw = @file_get_contents($storeFile);
     $items = $raw ? json_decode($raw, true) : [];
-    if (!is_array($items)) { $items = []; }
+    if (!is_array($items)) {
+      $items = [];
+    }
     $nextId = 1;
     if (!empty($items)) {
       $ids = array_column($items, 'id');
@@ -109,17 +120,23 @@ try {
 
   switch ($user['role']) {
     case 'doctor':
-      $dest = '/capstone/templates/doctor/doctor_dashboard.php'; break;
+      $dest = '/capstone/templates/doctor/doctor_dashboard.php';
+      break;
     case 'nurse':
-      $dest = '/capstone/templates/nurse/nurse_dashboard.php'; break;
+      $dest = '/capstone/templates/nurse/nurse_dashboard.php';
+      break;
     case 'supervisor':
-      $dest = '/capstone/templates/supervisor/supervisor_dashboard.php'; break;
+      $dest = '/capstone/templates/supervisor/supervisor_dashboard.php';
+      break;
     case 'pharmacist':
-      $dest = '/capstone/templates/pharmacy/pharmacy_dashboard.php'; break;
+      $dest = '/capstone/templates/pharmacy/pharmacy_dashboard.php';
+      break;
     case 'labstaff':
-      $dest = '/capstone/templates/laboratory/lab_dashboard.php'; break;
+      $dest = '/capstone/templates/laboratory/lab_dashboard.php';
+      break;
     case 'admin':
-      $dest = '/capstone/templates/admin/admin_dashboard.php'; break;
+      $dest = '/capstone/templates/admin/admin_dashboard.php';
+      break;
     default:
       $dest = '/capstone/index.php';
   }

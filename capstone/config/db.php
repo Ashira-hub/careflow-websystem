@@ -9,7 +9,8 @@ $PG_DB   = getenv('PGDATABASE') ?: 'railway';
 $PG_USER = getenv('PGUSER') ?: 'postgres';
 $PG_PASS = getenv('PGPASSWORD') ?: 'WkzkMhBNHYDiSkYpAHbWfCMJzINdKidg';
 
-function get_pdo(): PDO {
+function get_pdo(): PDO
+{
   global $PG_HOST, $PG_PORT, $PG_DB, $PG_USER, $PG_PASS;
   static $pdo = null;
   if ($pdo instanceof PDO) return $pdo;
@@ -21,6 +22,9 @@ function get_pdo(): PDO {
   ];
   $pdo = new PDO($dsn, $PG_USER, $PG_PASS, $options);
   // Ensure this connection/session uses Malaysia time zone for now(), timestamptz, etc.
-  try { $pdo->exec("SET TIME ZONE 'Asia/Kuala_Lumpur'"); } catch (Throwable $_) {}
+  try {
+    $pdo->exec("SET TIME ZONE 'Asia/Kuala_Lumpur'");
+  } catch (Throwable $_) {
+  }
   return $pdo;
 }

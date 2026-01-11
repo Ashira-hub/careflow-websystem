@@ -1,4 +1,5 @@
-<?php $page='Contact'; include __DIR__.'/includes/header.php'; ?>
+<?php $page = 'Contact';
+include __DIR__ . '/includes/header.php'; ?>
 <section class="page-hero">
   <div class="container narrow">
     <h1>Contact Us</h1>
@@ -24,4 +25,4 @@
     <button class="btn btn-primary" type="submit">Send message</button>
   </form>
 </section>
-<?php include __DIR__.'/includes/footer.php'; ?>
+<?php include __DIR__ . '/includes/footer.php'; ?>

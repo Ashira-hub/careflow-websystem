@@ -8,22 +8,27 @@
 
 header('Content-Type: application/json');
 require_once __DIR__ . '/../config/db.php';
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (session_status() === PHP_SESSION_NONE) {
+  session_start();
+}
 $uid = isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0;
 
-function json_body(): array {
+function json_body(): array
+{
   $raw = file_get_contents('php://input');
   if (!$raw) return [];
   $data = json_decode($raw, true);
   return is_array($data) ? $data : [];
 }
 
-function ok($data) {
+function ok($data)
+{
   echo json_encode($data);
   exit;
 }
 
-function fail($code, $msg) {
+function fail($code, $msg)
+{
   http_response_code($code);
   echo json_encode(['message' => $msg]);
   exit;
@@ -47,7 +52,7 @@ if ($method === 'GET') {
                            FROM appointments
                            WHERE created_by_user_id = :uid
                            ORDER BY id DESC');
-    $stmt->execute([':uid'=>$uid]);
+    $stmt->execute([':uid' => $uid]);
     $rows = $stmt->fetchAll();
     ok($rows);
   } catch (Throwable $e) {
@@ -112,15 +117,22 @@ if ($method === 'POST') {
 
     // Session activity: log new appointment
     try {
-      if (session_status() === PHP_SESSION_NONE) { session_start(); }
-      if (!isset($_SESSION['doctor_activity']) || !is_array($_SESSION['doctor_activity'])) { $_SESSION['doctor_activity'] = []; }
+      if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+      }
+      if (!isset($_SESSION['doctor_activity']) || !is_array($_SESSION['doctor_activity'])) {
+        $_SESSION['doctor_activity'] = [];
+      }
       $ts = date('Y-m-d H:i:s');
       $meta = substr($ts, 0, 16);
       $title = 'Appointment created';
       $body = (string)$patient;
-      $_SESSION['doctor_activity'][] = ['title'=>$title,'meta'=>$meta,'body'=>$body,'ts'=>$ts];
-      if (count($_SESSION['doctor_activity']) > 50) { $_SESSION['doctor_activity'] = array_slice($_SESSION['doctor_activity'], -50); }
-    } catch (Throwable $e) { }
+      $_SESSION['doctor_activity'][] = ['title' => $title, 'meta' => $meta, 'body' => $body, 'ts' => $ts];
+      if (count($_SESSION['doctor_activity']) > 50) {
+        $_SESSION['doctor_activity'] = array_slice($_SESSION['doctor_activity'], -50);
+      }
+    } catch (Throwable $e) {
+    }
 
     // Mirror to simplified table: appointment
     try {
@@ -134,7 +146,8 @@ if ($method === 'POST') {
         ':status' => $status,
         ':appointment_id' => $row['id'],
       ]);
-    } catch (Throwable $e) { /* ignore mirror errors */ }
+    } catch (Throwable $e) { /* ignore mirror errors */
+    }
 
     // Also store into patient_records for unified records history
     try {
@@ -151,7 +164,8 @@ if ($method === 'POST') {
         ':dosage' => null,
         ':uid' => $uid,
       ]);
-    } catch (Throwable $e) { /* ignore patient_records errors */ }
+    } catch (Throwable $e) { /* ignore patient_records errors */
+    }
 
     http_response_code(201);
     ok($row ?: ['id' => null]);
@@ -231,19 +245,27 @@ if ($method === 'PUT') {
         ':status' => $status,
         ':appointment_id' => $updated['id'],
       ]);
-    } catch (Throwable $e) { /* ignore mirror errors */ }
+    } catch (Throwable $e) { /* ignore mirror errors */
+    }
 
     // Session activity: log appointment update
     try {
-      if (session_status() === PHP_SESSION_NONE) { session_start(); }
-      if (!isset($_SESSION['doctor_activity']) || !is_array($_SESSION['doctor_activity'])) { $_SESSION['doctor_activity'] = []; }
+      if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+      }
+      if (!isset($_SESSION['doctor_activity']) || !is_array($_SESSION['doctor_activity'])) {
+        $_SESSION['doctor_activity'] = [];
+      }
       $ts = date('Y-m-d H:i:s');
       $meta = substr($ts, 0, 16);
       $title = 'Appointment updated';
       $body = (string)($updated['patient'] ?? '');
-      $_SESSION['doctor_activity'][] = ['title'=>$title,'meta'=>$meta,'body'=>$body,'ts'=>$ts];
-      if (count($_SESSION['doctor_activity']) > 50) { $_SESSION['doctor_activity'] = array_slice($_SESSION['doctor_activity'], -50); }
-    } catch (Throwable $e) { }
+      $_SESSION['doctor_activity'][] = ['title' => $title, 'meta' => $meta, 'body' => $body, 'ts' => $ts];
+      if (count($_SESSION['doctor_activity']) > 50) {
+        $_SESSION['doctor_activity'] = array_slice($_SESSION['doctor_activity'], -50);
+      }
+    } catch (Throwable $e) {
+    }
 
     ok($updated);
   } catch (Throwable $e) {
@@ -265,7 +287,8 @@ if ($method === 'DELETE') {
     try {
       $m = $pdo->prepare('DELETE FROM appointment WHERE appointment_id = :id');
       $m->execute([':id' => $id]);
-    } catch (Throwable $e) { }
+    } catch (Throwable $e) {
+    }
 
     http_response_code(204);
     exit;
@@ -275,4 +298,3 @@ if ($method === 'DELETE') {
 }
 
 fail(405, 'Method not allowed');
-?>

@@ -4,5 +4,6 @@
       <p class="muted small"> © CareFlow. All rights reserved.</p>
     </div>
   </footer>
-</body>
-</html>
+  </body>
+
+  </html>

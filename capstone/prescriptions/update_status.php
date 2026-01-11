@@ -9,7 +9,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'PUT' && $_SERVER['REQUEST_METHOD'] !== 'POST
   exit;
 }
 
-function json_body(): array {
+function json_body(): array
+{
   $raw = file_get_contents('php://input');
   if (!$raw) return [];
   $data = json_decode($raw, true);
@@ -26,7 +27,7 @@ if ($id <= 0 || $status === '') {
   exit;
 }
 
-$allowed = ['new','accepted','acknowledged','done','rejected','dispensed','pending'];
+$allowed = ['new', 'accepted', 'acknowledged', 'done', 'rejected', 'dispensed', 'pending'];
 if (!in_array($status, $allowed, true)) {
   http_response_code(400);
   echo json_encode(['error' => 'Invalid status']);

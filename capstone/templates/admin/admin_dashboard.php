@@ -1,26 +1,26 @@
 <?php
- $page='Admin Dashboard';
- require_once __DIR__.'/../../config/db.php';
- $totalUsers = 0;
- $activeUsers = 0;
- try {
-   $pdo = get_pdo();
-   $stmt = $pdo->query("SELECT COUNT(*) FROM users");
-   $totalUsers = (int)$stmt->fetchColumn();
-   // Check if users.active column exists; if yes, count active=TRUE
-   $c = $pdo->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name='users' AND column_name='active'");
-   $c->execute();
-   if ($c->fetchColumn()) {
-     $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE active = TRUE");
-     $activeUsers = (int)$stmt->fetchColumn();
-   } else {
-     // Fallback: show total as active if no active column is present
-     $activeUsers = $totalUsers;
-   }
- } catch (Throwable $e) {
-   // leave defaults
- }
- include __DIR__.'/../../includes/header.php';
+$page = 'Admin Dashboard';
+require_once __DIR__ . '/../../config/db.php';
+$totalUsers = 0;
+$activeUsers = 0;
+try {
+  $pdo = get_pdo();
+  $stmt = $pdo->query("SELECT COUNT(*) FROM users");
+  $totalUsers = (int)$stmt->fetchColumn();
+  // Check if users.active column exists; if yes, count active=TRUE
+  $c = $pdo->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name='users' AND column_name='active'");
+  $c->execute();
+  if ($c->fetchColumn()) {
+    $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE active = TRUE");
+    $activeUsers = (int)$stmt->fetchColumn();
+  } else {
+    // Fallback: show total as active if no active column is present
+    $activeUsers = $totalUsers;
+  }
+} catch (Throwable $e) {
+  // leave defaults
+}
+include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="layout-sidebar full-bleed" style="padding: 24px 20px;">
@@ -42,8 +42,16 @@
     <section id="home" class="dashboard-hero" style="padding-top:10px;">
       <h1 class="dashboard-title">Admin Dashboard</h1>
       <div class="stat-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div class="card"><h4>Users</h4><div class="muted-small">Total users</div><div class="stat-value"><?php echo number_format($totalUsers); ?></div></div>
-        <div class="card"><h4>Active Users</h4><div class="muted-small">Active flag</div><div class="stat-value"><?php echo number_format($activeUsers); ?></div></div>
+        <div class="card">
+          <h4>Users</h4>
+          <div class="muted-small">Total users</div>
+          <div class="stat-value"><?php echo number_format($totalUsers); ?></div>
+        </div>
+        <div class="card">
+          <h4>Active Users</h4>
+          <div class="muted-small">Active flag</div>
+          <div class="stat-value"><?php echo number_format($activeUsers); ?></div>
+        </div>
       </div>
 
       <div class="card">
@@ -67,5 +75,4 @@
   </div>
 </div>
 
-<?php include __DIR__.'/../../includes/footer.php'; ?>
-
+<?php include __DIR__ . '/../../includes/footer.php'; ?>

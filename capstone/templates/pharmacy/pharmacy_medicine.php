@@ -1,6 +1,6 @@
 <?php
-$page='Pharmacy Medicine';
-require_once __DIR__.'/../../config/db.php';
+$page = 'Pharmacy Medicine';
+require_once __DIR__ . '/../../config/db.php';
 $medicineItems = [];
 $medicineError = '';
 try {
@@ -10,8 +10,11 @@ try {
 } catch (Throwable $e) {
   $medicineError = 'Unable to load medicines at the moment.';
 }
-function pm_escape($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
-include __DIR__.'/../../includes/header.php';
+function pm_escape($v)
+{
+  return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+}
+include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="layout-sidebar full-bleed" style="padding: 24px 20px;">
@@ -35,7 +38,9 @@ include __DIR__.'/../../includes/header.php';
       <h2 class="dashboard-title" style="margin:0;">Medicine List</h2>
       <div class="grid-2" style="display:grid;grid-template-columns:1fr auto;align-items:end;gap:12px;margin-top:8px;">
         <div class="form-field"><label>Search</label><input type="text" id="searchInput" placeholder="Name or code" /></div>
-        <div class="form-field" style="width:180px;min-width:160px;"><label>Category</label><select id="categoryFilter" style="width:100%"><option value="">All</option></select></div>
+        <div class="form-field" style="width:180px;min-width:160px;"><label>Category</label><select id="categoryFilter" style="width:100%">
+            <option value="">All</option>
+          </select></div>
       </div>
     </section>
 
@@ -46,7 +51,20 @@ include __DIR__.'/../../includes/header.php';
       <?php else: ?>
         <div class="table-responsive">
           <table>
-            <thead><tr><th>ID</th><th>Brand Name</th><th>Generic Name</th><th>Category</th><th>Dosage Type</th><th>Strength</th><th>Unit</th><th>Stock</th><th>Expires</th><th>Description</th></tr></thead>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Brand Name</th>
+                <th>Generic Name</th>
+                <th>Category</th>
+                <th>Dosage Type</th>
+                <th>Strength</th>
+                <th>Unit</th>
+                <th>Stock</th>
+                <th>Expires</th>
+                <th>Description</th>
+              </tr>
+            </thead>
             <tbody>
               <?php if ($medicineItems): ?>
                 <?php foreach ($medicineItems as $med): ?>
@@ -64,7 +82,9 @@ include __DIR__.'/../../includes/header.php';
                   </tr>
                 <?php endforeach; ?>
               <?php else: ?>
-                <tr><td colspan="10" class="muted" style="text-align:center;">No medicines found in inventory.</td></tr>
+                <tr>
+                  <td colspan="10" class="muted" style="text-align:center;">No medicines found in inventory.</td>
+                </tr>
               <?php endif; ?>
             </tbody>
           </table>
@@ -80,139 +100,148 @@ include __DIR__.'/../../includes/header.php';
 </div>
 
 <script>
-(function(){
-  var searchInput = document.getElementById('searchInput');
-  var categoryFilter = document.getElementById('categoryFilter');
-  var table = document.querySelector('section.card table');
-  var tableBody = table ? table.querySelector('tbody') : null;
-  var pager = document.getElementById('pmPager');
-  var prevBtn = document.getElementById('pmPrevPage');
-  var nextBtn = document.getElementById('pmNextPage');
-  var pageIndicator = document.getElementById('pmPageIndicator');
-  var originalRows = [];
-  var pageSize = 8;
-  var currentPage = 1;
-  
-  // Store original rows data
-  function initializeRows(){
-    if(!tableBody) return;
-    originalRows = Array.from(tableBody.querySelectorAll('tr'))
-      .filter(function(row){ return !row.classList.contains('pm-empty-row'); })
-      .map(function(row){
-        var cells = row.querySelectorAll('td');
-        return {
-          element: row,
-          id: cells[0] ? cells[0].textContent.trim() : '',
-          brandName: cells[1] ? cells[1].textContent.trim() : '',
-          genericName: cells[2] ? cells[2].textContent.trim() : '',
-          category: cells[3] ? cells[3].textContent.trim() : '',
-          dosageType: cells[4] ? cells[4].textContent.trim() : '',
-          strength: cells[5] ? cells[5].textContent.trim() : '',
-          unit: cells[6] ? cells[6].textContent.trim() : '',
-          stock: cells[7] ? cells[7].textContent.trim() : '',
-          expires: cells[8] ? cells[8].textContent.trim() : '',
-          description: cells[9] ? cells[9].textContent.trim() : ''
-        };
-      });
-    
-    populateFilterOptions();
-    currentPage = 1;
-    renderPage();
-  }
-  
-  function populateFilterOptions(){
-    if(originalRows.length === 0 || !categoryFilter) return;
-    var categories = [...new Set(originalRows.map(function(row){
-      return row.category;
-    }).filter(function(category){
-      return category && category.trim() !== '';
-    }))].sort();
-    categoryFilter.innerHTML = '<option value="">All</option>';
-    categories.forEach(function(category){
-      var option = document.createElement('option');
-      option.value = category;
-      option.textContent = category;
-      categoryFilter.appendChild(option);
-    });
-  }
+  (function() {
+    var searchInput = document.getElementById('searchInput');
+    var categoryFilter = document.getElementById('categoryFilter');
+    var table = document.querySelector('section.card table');
+    var tableBody = table ? table.querySelector('tbody') : null;
+    var pager = document.getElementById('pmPager');
+    var prevBtn = document.getElementById('pmPrevPage');
+    var nextBtn = document.getElementById('pmNextPage');
+    var pageIndicator = document.getElementById('pmPageIndicator');
+    var originalRows = [];
+    var pageSize = 8;
+    var currentPage = 1;
 
-  function getFilteredRows(){
-    var searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    var selectedCategory = categoryFilter ? categoryFilter.value : '';
-    return originalRows.filter(function(row){
-      var matchesSearch = !searchTerm ||
-        row.brandName.toLowerCase().includes(searchTerm) ||
-        row.genericName.toLowerCase().includes(searchTerm) ||
-        row.id.toLowerCase().includes(searchTerm) ||
-        row.description.toLowerCase().includes(searchTerm);
-      var matchesCategory = !selectedCategory || row.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
-  }
+    // Store original rows data
+    function initializeRows() {
+      if (!tableBody) return;
+      originalRows = Array.from(tableBody.querySelectorAll('tr'))
+        .filter(function(row) {
+          return !row.classList.contains('pm-empty-row');
+        })
+        .map(function(row) {
+          var cells = row.querySelectorAll('td');
+          return {
+            element: row,
+            id: cells[0] ? cells[0].textContent.trim() : '',
+            brandName: cells[1] ? cells[1].textContent.trim() : '',
+            genericName: cells[2] ? cells[2].textContent.trim() : '',
+            category: cells[3] ? cells[3].textContent.trim() : '',
+            dosageType: cells[4] ? cells[4].textContent.trim() : '',
+            strength: cells[5] ? cells[5].textContent.trim() : '',
+            unit: cells[6] ? cells[6].textContent.trim() : '',
+            stock: cells[7] ? cells[7].textContent.trim() : '',
+            expires: cells[8] ? cells[8].textContent.trim() : '',
+            description: cells[9] ? cells[9].textContent.trim() : ''
+          };
+        });
 
-  function renderPage(){
-    if(!tableBody) return;
-    var filtered = getFilteredRows();
-    var total = filtered.length;
-    var totalPages = Math.max(1, Math.ceil(total / pageSize));
-    if(currentPage > totalPages) currentPage = totalPages;
-    var start = (currentPage - 1) * pageSize;
-    var end = start + pageSize;
+      populateFilterOptions();
+      currentPage = 1;
+      renderPage();
+    }
 
-    tableBody.innerHTML = '';
-
-    if(total === 0){
-      var noRow = document.createElement('tr');
-      noRow.className = 'pm-empty-row';
-      noRow.innerHTML = '<td colspan="10" class="muted" style="text-align:center;">No medicines found matching the filters.</td>';
-      tableBody.appendChild(noRow);
-    } else {
-      filtered.slice(start, end).forEach(function(row){
-        tableBody.appendChild(row.element);
+    function populateFilterOptions() {
+      if (originalRows.length === 0 || !categoryFilter) return;
+      var categories = [...new Set(originalRows.map(function(row) {
+        return row.category;
+      }).filter(function(category) {
+        return category && category.trim() !== '';
+      }))].sort();
+      categoryFilter.innerHTML = '<option value="">All</option>';
+      categories.forEach(function(category) {
+        var option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categoryFilter.appendChild(option);
       });
     }
 
-    if(pageIndicator){
-      pageIndicator.textContent = 'Page ' + currentPage + ' / ' + totalPages;
+    function getFilteredRows() {
+      var searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+      var selectedCategory = categoryFilter ? categoryFilter.value : '';
+      return originalRows.filter(function(row) {
+        var matchesSearch = !searchTerm ||
+          row.brandName.toLowerCase().includes(searchTerm) ||
+          row.genericName.toLowerCase().includes(searchTerm) ||
+          row.id.toLowerCase().includes(searchTerm) ||
+          row.description.toLowerCase().includes(searchTerm);
+        var matchesCategory = !selectedCategory || row.category === selectedCategory;
+        return matchesSearch && matchesCategory;
+      });
     }
-    if(prevBtn){ prevBtn.disabled = (currentPage <= 1 || total === 0); }
-    if(nextBtn){ nextBtn.disabled = (currentPage >= totalPages || total === 0); }
-  }
 
-  function filterRows(){
-    currentPage = 1;
-    renderPage();
-  }
-  
-  // Event listeners
-  if(searchInput){
-    searchInput.addEventListener('input', function(){
-      var self = this;
-      clearTimeout(self._pmSearchTimeout);
-      self._pmSearchTimeout = setTimeout(filterRows, 300);
-    });
-  }
-  
-  if(categoryFilter){
-    categoryFilter.addEventListener('change', filterRows);
-  }
+    function renderPage() {
+      if (!tableBody) return;
+      var filtered = getFilteredRows();
+      var total = filtered.length;
+      var totalPages = Math.max(1, Math.ceil(total / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      var start = (currentPage - 1) * pageSize;
+      var end = start + pageSize;
 
-  if(prevBtn){
-    prevBtn.addEventListener('click', function(){
-      if(currentPage > 1){ currentPage--; renderPage(); }
-    });
-  }
+      tableBody.innerHTML = '';
 
-  if(nextBtn){
-    nextBtn.addEventListener('click', function(){
-      currentPage++; renderPage();
-    });
-  }
-  
-  // Initialize on page load
-  initializeRows();
-})();
+      if (total === 0) {
+        var noRow = document.createElement('tr');
+        noRow.className = 'pm-empty-row';
+        noRow.innerHTML = '<td colspan="10" class="muted" style="text-align:center;">No medicines found matching the filters.</td>';
+        tableBody.appendChild(noRow);
+      } else {
+        filtered.slice(start, end).forEach(function(row) {
+          tableBody.appendChild(row.element);
+        });
+      }
+
+      if (pageIndicator) {
+        pageIndicator.textContent = 'Page ' + currentPage + ' / ' + totalPages;
+      }
+      if (prevBtn) {
+        prevBtn.disabled = (currentPage <= 1 || total === 0);
+      }
+      if (nextBtn) {
+        nextBtn.disabled = (currentPage >= totalPages || total === 0);
+      }
+    }
+
+    function filterRows() {
+      currentPage = 1;
+      renderPage();
+    }
+
+    // Event listeners
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        var self = this;
+        clearTimeout(self._pmSearchTimeout);
+        self._pmSearchTimeout = setTimeout(filterRows, 300);
+      });
+    }
+
+    if (categoryFilter) {
+      categoryFilter.addEventListener('change', filterRows);
+    }
+
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function() {
+        if (currentPage > 1) {
+          currentPage--;
+          renderPage();
+        }
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function() {
+        currentPage++;
+        renderPage();
+      });
+    }
+
+    // Initialize on page load
+    initializeRows();
+  })();
 </script>
 
-<?php include __DIR__.'/../../includes/footer.php'; ?>
-
+<?php include __DIR__ . '/../../includes/footer.php'; ?>

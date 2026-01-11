@@ -1,4 +1,5 @@
-<?php $page='About'; include __DIR__.'/includes/header.php'; ?>
+<?php $page = 'About';
+include __DIR__ . '/includes/header.php'; ?>
 <section class="page-hero">
   <div class="container narrow">
     <h1>About CareFlow</h1>
@@ -15,4 +16,4 @@
     <li>Excellence</li>
   </ul>
 </section>
-<?php include __DIR__.'/includes/footer.php'; ?>
+<?php include __DIR__ . '/includes/footer.php'; ?>

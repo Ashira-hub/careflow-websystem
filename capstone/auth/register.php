@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (session_status() === PHP_SESSION_NONE) {
+  session_start();
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   header('Location: /capstone/register.php');
@@ -16,7 +18,7 @@ $confirm = $_POST['confirm_password'] ?? '';
 $errors = [];
 if ($full_name === '') $errors[] = 'Full name is required';
 if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Valid email is required';
-$valid_roles = ['doctor','nurse','supervisor','pharmacist','labstaff','admin'];
+$valid_roles = ['doctor', 'nurse', 'supervisor', 'pharmacist', 'labstaff', 'admin'];
 if (!in_array($role, $valid_roles, true)) $errors[] = 'Invalid role';
 if (strlen($password) < 6) $errors[] = 'Password must be at least 6 characters';
 if ($password !== $confirm) $errors[] = 'Passwords do not match';
@@ -168,40 +170,77 @@ try {
     $hasRole   = in_array('role', $docCols, true);
     $hasPwd    = in_array('password_hash', $docCols, true);
     $hasActive = in_array('active', $docCols, true);
-    $hasCreated= in_array('created_at', $docCols, true);
+    $hasCreated = in_array('created_at', $docCols, true);
 
     if ($hasUserId) {
       // Build dynamic column/value lists for upsert on user_id
-      $insCols = ['user_id','full_name','email'];
+      $insCols = ['user_id', 'full_name', 'email'];
       $insVals = [':uid', ':full_name', ':email'];
       $updates = ['full_name = EXCLUDED.full_name', 'email = EXCLUDED.email'];
-      if ($hasRole)   { $insCols[]='role';          $insVals[]="'doctor'";           $updates[]='role = EXCLUDED.role'; }
-      if ($hasPwd)    { $insCols[]='password_hash'; $insVals[]=':pwd';                $updates[]='password_hash = EXCLUDED.password_hash'; }
-      if ($hasActive) { $insCols[]='active';        $insVals[]='TRUE';                $updates[]='active = COALESCE(EXCLUDED.active, TRUE)'; }
-      if ($hasCreated){ $insCols[]='created_at';    $insVals[]='now()'; /* no update */ }
+      if ($hasRole) {
+        $insCols[] = 'role';
+        $insVals[] = "'doctor'";
+        $updates[] = 'role = EXCLUDED.role';
+      }
+      if ($hasPwd) {
+        $insCols[] = 'password_hash';
+        $insVals[] = ':pwd';
+        $updates[] = 'password_hash = EXCLUDED.password_hash';
+      }
+      if ($hasActive) {
+        $insCols[] = 'active';
+        $insVals[] = 'TRUE';
+        $updates[] = 'active = COALESCE(EXCLUDED.active, TRUE)';
+      }
+      if ($hasCreated) {
+        $insCols[] = 'created_at';
+        $insVals[] = 'now()'; /* no update */
+      }
       $sql = 'INSERT INTO doctor (' . implode(',', $insCols) . ') VALUES (' . implode(',', $insVals) . ') '
-           . 'ON CONFLICT (user_id) DO UPDATE SET ' . implode(', ', $updates);
+        . 'ON CONFLICT (user_id) DO UPDATE SET ' . implode(', ', $updates);
       $stmt = $pdo->prepare($sql);
-      $params = [ ':uid'=>$user_id, ':full_name'=>$full_name, ':email'=>$email ];
-      if ($hasPwd) { $params[':pwd'] = $hash; }
+      $params = [':uid' => $user_id, ':full_name' => $full_name, ':email' => $email];
+      if ($hasPwd) {
+        $params[':pwd'] = $hash;
+      }
       $stmt->execute($params);
     } else {
       // No user_id column. Insert available columns and avoid duplicates by email
       $insCols = [];
       $selCols = [];
-      if (in_array('full_name', $docCols, true)) { $insCols[]='full_name';  $selCols[]=':full_name::text'; }
-      if (in_array('email', $docCols, true))     { $insCols[]='email';      $selCols[]=':email::text'; }
-      if ($hasRole)   { $insCols[]='role';          $selCols[]="'doctor'"; }
-      if ($hasPwd)    { $insCols[]='password_hash'; $selCols[]=':pwd::text'; }
-      if ($hasActive) { $insCols[]='active';        $selCols[]='TRUE'; }
-      if ($hasCreated){ $insCols[]='created_at';    $selCols[]='now()'; }
+      if (in_array('full_name', $docCols, true)) {
+        $insCols[] = 'full_name';
+        $selCols[] = ':full_name::text';
+      }
+      if (in_array('email', $docCols, true)) {
+        $insCols[] = 'email';
+        $selCols[] = ':email::text';
+      }
+      if ($hasRole) {
+        $insCols[] = 'role';
+        $selCols[] = "'doctor'";
+      }
+      if ($hasPwd) {
+        $insCols[] = 'password_hash';
+        $selCols[] = ':pwd::text';
+      }
+      if ($hasActive) {
+        $insCols[] = 'active';
+        $selCols[] = 'TRUE';
+      }
+      if ($hasCreated) {
+        $insCols[] = 'created_at';
+        $selCols[] = 'now()';
+      }
       if (!empty($insCols)) {
         $sql = 'INSERT INTO doctor (' . implode(',', $insCols) . ') '
-             . 'SELECT ' . implode(',', $selCols) . ' '
-             . 'WHERE NOT EXISTS (SELECT 1 FROM doctor d WHERE LOWER(TRIM(d.email)) = LOWER(TRIM(:email::text)))';
+          . 'SELECT ' . implode(',', $selCols) . ' '
+          . 'WHERE NOT EXISTS (SELECT 1 FROM doctor d WHERE LOWER(TRIM(d.email)) = LOWER(TRIM(:email::text)))';
         $stmt = $pdo->prepare($sql);
-        $params = [ ':full_name'=>$full_name, ':email'=>$email ];
-        if ($hasPwd) { $params[':pwd'] = $hash; }
+        $params = [':full_name' => $full_name, ':email' => $email];
+        if ($hasPwd) {
+          $params[':pwd'] = $hash;
+        }
         $stmt->execute($params);
       }
     }
@@ -211,7 +250,9 @@ try {
   header('Location: /capstone/login.php');
   exit;
 } catch (Throwable $e) {
-  if (isset($pdo) && $pdo->inTransaction()) { $pdo->rollBack(); }
+  if (isset($pdo) && $pdo->inTransaction()) {
+    $pdo->rollBack();
+  }
   $_SESSION['flash_error'] = 'Registration failed: ' . $e->getMessage();
   header('Location: /capstone/register.php');
   exit;

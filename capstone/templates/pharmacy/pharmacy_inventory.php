@@ -1,40 +1,46 @@
 <?php
- $page='Pharmacy Inventory';
- require_once __DIR__.'/../../config/db.php';
- if (session_status() === PHP_SESSION_NONE) { session_start(); }
+$page = 'Pharmacy Inventory';
+require_once __DIR__ . '/../../config/db.php';
+if (session_status() === PHP_SESSION_NONE) {
+  session_start();
+}
 
- $inventoryItems = [];
- $inventoryError = '';
+$inventoryItems = [];
+$inventoryError = '';
 
- if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-   try {
-     $pdo = get_pdo();
-     $mode = isset($_POST['mode']) && $_POST['mode'] === 'update' ? 'update' : 'add';
-     $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  try {
+    $pdo = get_pdo();
+    $mode = isset($_POST['mode']) && $_POST['mode'] === 'update' ? 'update' : 'add';
+    $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
 
-     $generic   = trim($_POST['generic_name'] ?? '');
-     $brand     = trim($_POST['brand_name'] ?? '');
-     $category  = trim($_POST['category'] ?? '');
-     $dosage    = trim($_POST['dosage_type'] ?? '');
-     $strength  = trim($_POST['strength'] ?? '');
-     $unit      = trim($_POST['unit'] ?? '');
-     $expires   = trim($_POST['expiration_date'] ?? '');
-     $stockRaw  = trim($_POST['stock'] ?? '0');
-     $desc      = trim($_POST['description'] ?? '');
+    $generic   = trim($_POST['generic_name'] ?? '');
+    $brand     = trim($_POST['brand_name'] ?? '');
+    $category  = trim($_POST['category'] ?? '');
+    $dosage    = trim($_POST['dosage_type'] ?? '');
+    $strength  = trim($_POST['strength'] ?? '');
+    $unit      = trim($_POST['unit'] ?? '');
+    $expires   = trim($_POST['expiration_date'] ?? '');
+    $stockRaw  = trim($_POST['stock'] ?? '0');
+    $desc      = trim($_POST['description'] ?? '');
 
-     $errors = [];
-     if ($generic === '') { $errors[] = 'Generic name is required.'; }
-     if ($stockRaw === '' || !is_numeric($stockRaw) || (int)$stockRaw < 0) { $errors[] = 'Stock must be a non-negative number.'; }
-     $stock = (int)$stockRaw;
-     if ($expires !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expires)) {
-       $errors[] = 'Expiration date must be in YYYY-MM-DD format.';
-     }
+    $errors = [];
+    if ($generic === '') {
+      $errors[] = 'Generic name is required.';
+    }
+    if ($stockRaw === '' || !is_numeric($stockRaw) || (int)$stockRaw < 0) {
+      $errors[] = 'Stock must be a non-negative number.';
+    }
+    $stock = (int)$stockRaw;
+    if ($expires !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expires)) {
+      $errors[] = 'Expiration date must be in YYYY-MM-DD format.';
+    }
 
-     if ($errors) {
-       $_SESSION['flash_error'] = implode("\n", $errors);
-     } else {
-       if ($mode === 'update' && $id > 0) {
-         $sql = 'UPDATE inventory
+    if ($errors) {
+      $_SESSION['flash_error'] = implode("\n", $errors);
+    } else {
+      if ($mode === 'update' && $id > 0) {
+        $sql = 'UPDATE inventory
                    SET generic_name = :generic_name,
                        brand_name   = :brand_name,
                        category     = :category,
@@ -45,55 +51,58 @@
                        stock        = :stock,
                        description  = :description
                  WHERE id = :id';
-         $stmt = $pdo->prepare($sql);
-         $stmt->execute([
-           ':generic_name'    => $generic,
-           ':brand_name'      => $brand,
-           ':category'        => $category,
-           ':dosage_type'     => $dosage,
-           ':strength'        => $strength,
-           ':unit'            => $unit,
-           ':expiration_date' => $expires !== '' ? $expires : null,
-           ':stock'           => $stock,
-           ':description'     => $desc,
-           ':id'              => $id,
-         ]);
-         $_SESSION['flash_success'] = 'Inventory item updated.';
-       } else {
-         $sql = 'INSERT INTO inventory (generic_name, brand_name, category, dosage_type, strength, unit, expiration_date, stock, description, created_at)
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+          ':generic_name'    => $generic,
+          ':brand_name'      => $brand,
+          ':category'        => $category,
+          ':dosage_type'     => $dosage,
+          ':strength'        => $strength,
+          ':unit'            => $unit,
+          ':expiration_date' => $expires !== '' ? $expires : null,
+          ':stock'           => $stock,
+          ':description'     => $desc,
+          ':id'              => $id,
+        ]);
+        $_SESSION['flash_success'] = 'Inventory item updated.';
+      } else {
+        $sql = 'INSERT INTO inventory (generic_name, brand_name, category, dosage_type, strength, unit, expiration_date, stock, description, created_at)
                  VALUES (:generic_name, :brand_name, :category, :dosage_type, :strength, :unit, :expiration_date, :stock, :description, NOW())';
-         $stmt = $pdo->prepare($sql);
-         $stmt->execute([
-           ':generic_name'    => $generic,
-           ':brand_name'      => $brand,
-           ':category'        => $category,
-           ':dosage_type'     => $dosage,
-           ':strength'        => $strength,
-           ':unit'            => $unit,
-           ':expiration_date' => $expires !== '' ? $expires : null,
-           ':stock'           => $stock,
-           ':description'     => $desc,
-         ]);
-         $_SESSION['flash_success'] = 'Inventory item added.';
-       }
-     }
-   } catch (Throwable $e) {
-     $_SESSION['flash_error'] = 'Failed to save inventory: ' . $e->getMessage();
-   }
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+          ':generic_name'    => $generic,
+          ':brand_name'      => $brand,
+          ':category'        => $category,
+          ':dosage_type'     => $dosage,
+          ':strength'        => $strength,
+          ':unit'            => $unit,
+          ':expiration_date' => $expires !== '' ? $expires : null,
+          ':stock'           => $stock,
+          ':description'     => $desc,
+        ]);
+        $_SESSION['flash_success'] = 'Inventory item added.';
+      }
+    }
+  } catch (Throwable $e) {
+    $_SESSION['flash_error'] = 'Failed to save inventory: ' . $e->getMessage();
+  }
 
-   header('Location: /capstone/templates/pharmacy/pharmacy_inventory.php');
-   exit;
- }
+  header('Location: /capstone/templates/pharmacy/pharmacy_inventory.php');
+  exit;
+}
 
- try {
-   $pdo = get_pdo();
-   $stmt = $pdo->query('SELECT id, generic_name, brand_name, category, dosage_type, strength, unit, expiration_date, description, created_at, stock FROM inventory ORDER BY generic_name ASC');
-   $inventoryItems = $stmt->fetchAll();
- } catch (Throwable $e) {
-   $inventoryError = 'Unable to load inventory at the moment.';
- }
- function pi_escape($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
- include __DIR__.'/../../includes/header.php';
+try {
+  $pdo = get_pdo();
+  $stmt = $pdo->query('SELECT id, generic_name, brand_name, category, dosage_type, strength, unit, expiration_date, description, created_at, stock FROM inventory ORDER BY generic_name ASC');
+  $inventoryItems = $stmt->fetchAll();
+} catch (Throwable $e) {
+  $inventoryError = 'Unable to load inventory at the moment.';
+}
+function pi_escape($v)
+{
+  return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+}
+include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="layout-sidebar full-bleed" style="padding: 24px 20px;">
@@ -139,12 +148,14 @@
       </div>
       <?php if (!empty($_SESSION['flash_error'])): ?>
         <div class="alert alert-error" style="margin-top:12px;">
-          <?php echo nl2br(pi_escape($_SESSION['flash_error'])); unset($_SESSION['flash_error']); ?>
+          <?php echo nl2br(pi_escape($_SESSION['flash_error']));
+          unset($_SESSION['flash_error']); ?>
         </div>
       <?php endif; ?>
       <?php if (!empty($_SESSION['flash_success'])): ?>
         <div class="alert" style="margin-top:12px;border-color:#bbf7d0;background:#ecfdf5;color:#065f46;">
-          <?php echo nl2br(pi_escape($_SESSION['flash_success'])); unset($_SESSION['flash_success']); ?>
+          <?php echo nl2br(pi_escape($_SESSION['flash_success']));
+          unset($_SESSION['flash_success']); ?>
         </div>
       <?php endif; ?>
       <?php if ($inventoryError !== ''): ?>
@@ -152,7 +163,21 @@
       <?php else: ?>
         <div class="table-responsive">
           <table>
-            <thead><tr><th>ID</th><th>Generic Name</th><th>Brand Name</th><th>Category</th><th>Dosage Type</th><th>Strength</th><th>Unit</th><th>Expires</th><th>Stock</th><th>Description</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Generic Name</th>
+                <th>Brand Name</th>
+                <th>Category</th>
+                <th>Dosage Type</th>
+                <th>Strength</th>
+                <th>Unit</th>
+                <th>Expires</th>
+                <th>Stock</th>
+                <th>Description</th>
+                <th></th>
+              </tr>
+            </thead>
             <tbody>
               <?php if ($inventoryItems): ?>
                 <?php foreach ($inventoryItems as $item): ?>
@@ -171,7 +196,9 @@
                   </tr>
                 <?php endforeach; ?>
               <?php else: ?>
-                <tr><td colspan="12" class="muted" style="text-align:center;">No inventory records found.</td></tr>
+                <tr>
+                  <td colspan="12" class="muted" style="text-align:center;">No inventory records found.</td>
+                </tr>
               <?php endif; ?>
             </tbody>
           </table>
@@ -219,26 +246,37 @@
 </div>
 
 <script>
-  (function(){
+  (function() {
     var addBtn = document.getElementById('piAddBtn');
     var modal = document.getElementById('piModal');
-    if(!addBtn || !modal) return;
+    if (!addBtn || !modal) return;
     var closeBtn = document.getElementById('piCloseBtn');
     var cancelBtn = document.getElementById('piCancelBtn');
     var form = document.getElementById('piForm');
     var title = document.getElementById('piModalTitle');
     var submitBtn = document.getElementById('piSubmitBtn');
-    function openModal(e){ if(e) e.preventDefault(); modal.style.display='flex'; }
-    function closeModal(e){ if(e) e.preventDefault(); modal.style.display='none'; }
+
+    function openModal(e) {
+      if (e) e.preventDefault();
+      modal.style.display = 'flex';
+    }
+
+    function closeModal(e) {
+      if (e) e.preventDefault();
+      modal.style.display = 'none';
+    }
     addBtn.addEventListener('click', openModal);
     // Let browser submit form to server; no JS alert.
-    if(closeBtn) closeBtn.addEventListener('click', closeModal);
-    if(cancelBtn) cancelBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', function(e){ if(e.target===modal) closeModal(); });
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) closeModal();
+    });
 
     var updateButtons = document.querySelectorAll('[data-action="piUpdate"]');
-    function fillFormFromRow(row){
-      if(!form) return;
+
+    function fillFormFromRow(row) {
+      if (!form) return;
       form.reset();
       var cells = row.querySelectorAll('td');
       form.elements['generic_name'].value = cells[1] ? cells[1].textContent.trim() : '';
@@ -251,38 +289,48 @@
       form.elements['stock'].value = cells[8] ? cells[8].textContent.trim() : '';
       form.elements['description'].value = cells[9] ? cells[9].textContent.trim() : '';
     }
-    updateButtons.forEach(function(btn){
-      btn.addEventListener('click', function(e){
+    updateButtons.forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
         e.preventDefault();
-        if(form){
-          form.setAttribute('data-mode','update');
+        if (form) {
+          form.setAttribute('data-mode', 'update');
           document.getElementById('pi_mode').value = 'update';
           document.getElementById('pi_id').value = btn.getAttribute('data-id') || '';
         }
-        if(title){ title.textContent = 'Update Inventory Item'; }
-        if(submitBtn){ submitBtn.textContent = 'Update'; }
+        if (title) {
+          title.textContent = 'Update Inventory Item';
+        }
+        if (submitBtn) {
+          submitBtn.textContent = 'Update';
+        }
         var row = btn.closest('tr');
-        if(row){ fillFormFromRow(row); }
+        if (row) {
+          fillFormFromRow(row);
+        }
         openModal();
       });
     });
-    if(form){
-      form.addEventListener('reset', function(){
-        if(document.getElementById('pi_id')) document.getElementById('pi_id').value = '';
-        form.setAttribute('data-mode','add');
-        if(document.getElementById('pi_mode')) document.getElementById('pi_mode').value = 'add';
+    if (form) {
+      form.addEventListener('reset', function() {
+        if (document.getElementById('pi_id')) document.getElementById('pi_id').value = '';
+        form.setAttribute('data-mode', 'add');
+        if (document.getElementById('pi_mode')) document.getElementById('pi_mode').value = 'add';
       });
     }
-    if(addBtn){
-      addBtn.addEventListener('click', function(){
-        if(form){
+    if (addBtn) {
+      addBtn.addEventListener('click', function() {
+        if (form) {
           form.reset();
-          form.setAttribute('data-mode','add');
-          if(document.getElementById('pi_mode')) document.getElementById('pi_mode').value = 'add';
-          if(document.getElementById('pi_id')) document.getElementById('pi_id').value = '';
+          form.setAttribute('data-mode', 'add');
+          if (document.getElementById('pi_mode')) document.getElementById('pi_mode').value = 'add';
+          if (document.getElementById('pi_id')) document.getElementById('pi_id').value = '';
         }
-        if(title){ title.textContent = 'Add Inventory Item'; }
-        if(submitBtn){ submitBtn.textContent = 'Save'; }
+        if (title) {
+          title.textContent = 'Add Inventory Item';
+        }
+        if (submitBtn) {
+          submitBtn.textContent = 'Save';
+        }
       });
     }
 
@@ -297,17 +345,19 @@
     var currentPage = 1;
     var originalRows = [];
 
-    function initializeRows(){
+    function initializeRows() {
       var table = modal.parentNode ? modal.parentNode.parentNode.querySelector('table') : null;
-      if(!table){
+      if (!table) {
         table = document.querySelector('section.card table');
       }
-      if(!table) return;
+      if (!table) return;
       var tbody = table.querySelector('tbody');
-      if(!tbody) return;
+      if (!tbody) return;
       originalRows = Array.from(tbody.querySelectorAll('tr'))
-        .filter(function(row){ return !row.classList.contains('pi-empty-row'); })
-        .map(function(row){
+        .filter(function(row) {
+          return !row.classList.contains('pi-empty-row');
+        })
+        .map(function(row) {
           var cells = row.querySelectorAll('td');
           return {
             element: row,
@@ -327,10 +377,10 @@
       renderPage();
     }
 
-    function getFilteredRows(){
+    function getFilteredRows() {
       var searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
       var selectedCategory = categoryFilter ? categoryFilter.value : '';
-      return originalRows.filter(function(r){
+      return originalRows.filter(function(r) {
         var matchesSearch = !searchTerm ||
           r.generic.toLowerCase().includes(searchTerm) ||
           r.brand.toLowerCase().includes(searchTerm) ||
@@ -341,59 +391,69 @@
       });
     }
 
-    function renderPage(){
+    function renderPage() {
       var table = document.querySelector('section.card table');
-      if(!table) return;
+      if (!table) return;
       var tbody = table.querySelector('tbody');
-      if(!tbody) return;
+      if (!tbody) return;
       var filtered = getFilteredRows();
       var total = filtered.length;
       var totalPages = Math.max(1, Math.ceil(total / pageSize));
-      if(currentPage > totalPages) currentPage = totalPages;
+      if (currentPage > totalPages) currentPage = totalPages;
       var start = (currentPage - 1) * pageSize;
       var end = start + pageSize;
 
       tbody.innerHTML = '';
 
-      if(total === 0){
+      if (total === 0) {
         var noRow = document.createElement('tr');
         noRow.className = 'pi-empty-row';
         noRow.innerHTML = '<td colspan="12" class="muted" style="text-align:center;">No inventory records found.</td>';
         tbody.appendChild(noRow);
       } else {
-        filtered.slice(start, end).forEach(function(r){ tbody.appendChild(r.element); });
+        filtered.slice(start, end).forEach(function(r) {
+          tbody.appendChild(r.element);
+        });
       }
 
-      if(pageIndicator){
+      if (pageIndicator) {
         pageIndicator.textContent = 'Page ' + currentPage + ' / ' + totalPages;
       }
-      if(prevBtnPager){ prevBtnPager.disabled = (currentPage <= 1 || total === 0); }
-      if(nextBtnPager){ nextBtnPager.disabled = (currentPage >= totalPages || total === 0); }
+      if (prevBtnPager) {
+        prevBtnPager.disabled = (currentPage <= 1 || total === 0);
+      }
+      if (nextBtnPager) {
+        nextBtnPager.disabled = (currentPage >= totalPages || total === 0);
+      }
     }
 
-    function filterRows(){
+    function filterRows() {
       currentPage = 1;
       renderPage();
     }
 
-    if(searchInput){
-      searchInput.addEventListener('input', function(){
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
         var self = this;
         clearTimeout(self._searchTimeout);
         self._searchTimeout = setTimeout(filterRows, 250);
       });
     }
-    if(categoryFilter){
+    if (categoryFilter) {
       categoryFilter.addEventListener('change', filterRows);
     }
-    if(prevBtnPager){
-      prevBtnPager.addEventListener('click', function(){
-        if(currentPage > 1){ currentPage--; renderPage(); }
+    if (prevBtnPager) {
+      prevBtnPager.addEventListener('click', function() {
+        if (currentPage > 1) {
+          currentPage--;
+          renderPage();
+        }
       });
     }
-    if(nextBtnPager){
-      nextBtnPager.addEventListener('click', function(){
-        currentPage++; renderPage();
+    if (nextBtnPager) {
+      nextBtnPager.addEventListener('click', function() {
+        currentPage++;
+        renderPage();
       });
     }
 
@@ -402,5 +462,4 @@
   })();
 </script>
 
-<?php include __DIR__.'/../../includes/footer.php'; ?>
-
+<?php include __DIR__ . '/../../includes/footer.php'; ?>

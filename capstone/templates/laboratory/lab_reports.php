@@ -1,70 +1,76 @@
 <?php
- $page='Lab Reports';
- require_once __DIR__.'/../../config/db.php';
- if (session_status() === PHP_SESSION_NONE) { session_start(); }
+$page = 'Lab Reports';
+require_once __DIR__ . '/../../config/db.php';
+if (session_status() === PHP_SESSION_NONE) {
+  session_start();
+}
 
- // Determine selected month/year from query (default: current month)
- $selectedYear  = isset($_GET['year'])  ? (int)$_GET['year']  : (int)date('Y');
- $selectedMonth = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('n');
- if ($selectedYear < 1970 || $selectedYear > 2100) { $selectedYear = (int)date('Y'); }
- if ($selectedMonth < 1 || $selectedMonth > 12) { $selectedMonth = (int)date('n'); }
- $selectedMonthStart = sprintf('%04d-%02d-01', $selectedYear, $selectedMonth);
+// Determine selected month/year from query (default: current month)
+$selectedYear  = isset($_GET['year'])  ? (int)$_GET['year']  : (int)date('Y');
+$selectedMonth = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('n');
+if ($selectedYear < 1970 || $selectedYear > 2100) {
+  $selectedYear = (int)date('Y');
+}
+if ($selectedMonth < 1 || $selectedMonth > 12) {
+  $selectedMonth = (int)date('n');
+}
+$selectedMonthStart = sprintf('%04d-%02d-01', $selectedYear, $selectedMonth);
 
- $testsThisMonth = 0;
- $patientsThisMonth = 0;
- $recentReports = [];
- try {
-   $pdo = get_pdo();
-   // Discover columns to choose appropriate date/owner fields
-   $colStmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'lab_tests'");
-   $colStmt->execute();
-   $cols = array_map('strtolower', array_map('strval', array_column($colStmt->fetchAll(PDO::FETCH_ASSOC), 'column_name')));
-   $hasLegacyDate  = in_array('date', $cols, true);
-   $hasTestDate    = in_array('test_date', $cols, true);
-   $hasCreatedById = in_array('created_by_user_id', $cols, true);
+$testsThisMonth = 0;
+$patientsThisMonth = 0;
+$recentReports = [];
+try {
+  $pdo = get_pdo();
+  // Discover columns to choose appropriate date/owner fields
+  $colStmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'lab_tests'");
+  $colStmt->execute();
+  $cols = array_map('strtolower', array_map('strval', array_column($colStmt->fetchAll(PDO::FETCH_ASSOC), 'column_name')));
+  $hasLegacyDate  = in_array('date', $cols, true);
+  $hasTestDate    = in_array('test_date', $cols, true);
+  $hasCreatedById = in_array('created_by_user_id', $cols, true);
 
-   // Prefer legacy `date`, then `test_date`, else created_at::date
-   if ($hasLegacyDate) {
-     $dateExpr = 'date::date';
-   } elseif ($hasTestDate) {
-     $dateExpr = 'test_date';
-   } else {
-     $dateExpr = 'created_at::date';
-   }
+  // Prefer legacy `date`, then `test_date`, else created_at::date
+  if ($hasLegacyDate) {
+    $dateExpr = 'date::date';
+  } elseif ($hasTestDate) {
+    $dateExpr = 'test_date';
+  } else {
+    $dateExpr = 'created_at::date';
+  }
 
-   $where = "date_trunc('month', $dateExpr) = date_trunc('month', :month_start::date)";
-   $params = [':month_start' => $selectedMonthStart];
-   if ($hasCreatedById && !empty($_SESSION['user']['id'])) {
-     $where .= ' AND created_by_user_id = :uid';
-     $params[':uid'] = (int)$_SESSION['user']['id'];
-   }
+  $where = "date_trunc('month', $dateExpr) = date_trunc('month', :month_start::date)";
+  $params = [':month_start' => $selectedMonthStart];
+  if ($hasCreatedById && !empty($_SESSION['user']['id'])) {
+    $where .= ' AND created_by_user_id = :uid';
+    $params[':uid'] = (int)$_SESSION['user']['id'];
+  }
 
-   // Total tests this month
-   $sqlTests = "SELECT COUNT(*)::int AS c FROM lab_tests WHERE $where";
-   $stmt = $pdo->prepare($sqlTests);
-   $stmt->execute($params);
-   $testsThisMonth = (int)($stmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+  // Total tests this month
+  $sqlTests = "SELECT COUNT(*)::int AS c FROM lab_tests WHERE $where";
+  $stmt = $pdo->prepare($sqlTests);
+  $stmt->execute($params);
+  $testsThisMonth = (int)($stmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
 
-   // Distinct patients this month
-   $sqlPatients = "SELECT COUNT(DISTINCT patient)::int AS c FROM lab_tests WHERE $where";
-   $stmt = $pdo->prepare($sqlPatients);
-   $stmt->execute($params);
-   $patientsThisMonth = (int)($stmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+  // Distinct patients this month
+  $sqlPatients = "SELECT COUNT(DISTINCT patient)::int AS c FROM lab_tests WHERE $where";
+  $stmt = $pdo->prepare($sqlPatients);
+  $stmt->execute($params);
+  $patientsThisMonth = (int)($stmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
 
-   // Per-test counts for this month (recent reports table)
-   $sqlRecent = "SELECT test_name, COUNT(*)::int AS c FROM lab_tests WHERE $where GROUP BY test_name ORDER BY c DESC, test_name ASC LIMIT 10";
-   $stmt = $pdo->prepare($sqlRecent);
-   $stmt->execute($params);
-   $recentReports = $stmt->fetchAll(PDO::FETCH_ASSOC);
- } catch (Throwable $e) {
-   // Keep page usable even if stats fail
-   error_log('Failed to load lab report stats: ' . $e->getMessage());
-   $testsThisMonth = 0;
-   $patientsThisMonth = 0;
-   $recentReports = [];
- }
+  // Per-test counts for this month (recent reports table)
+  $sqlRecent = "SELECT test_name, COUNT(*)::int AS c FROM lab_tests WHERE $where GROUP BY test_name ORDER BY c DESC, test_name ASC LIMIT 10";
+  $stmt = $pdo->prepare($sqlRecent);
+  $stmt->execute($params);
+  $recentReports = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+  // Keep page usable even if stats fail
+  error_log('Failed to load lab report stats: ' . $e->getMessage());
+  $testsThisMonth = 0;
+  $patientsThisMonth = 0;
+  $recentReports = [];
+}
 
- include __DIR__.'/../../includes/header.php';
+include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="layout-sidebar full-bleed" style="padding: 24px 20px;">
@@ -158,82 +164,94 @@
 </div>
 
 <script>
-(function(){
-  var currentMonthYear = document.getElementById('currentMonthYear');
-  var prevMonthBtn = document.getElementById('prevMonth');
-  var nextMonthBtn = document.getElementById('nextMonth');
+  (function() {
+    var currentMonthYear = document.getElementById('currentMonthYear');
+    var prevMonthBtn = document.getElementById('prevMonth');
+    var nextMonthBtn = document.getElementById('nextMonth');
 
-  // Initialize from PHP-selected month/year
-  var selectedYear  = <?php echo (int)$selectedYear; ?>;
-  var selectedMonth = <?php echo (int)$selectedMonth; ?>; // 1-12
+    // Initialize from PHP-selected month/year
+    var selectedYear = <?php echo (int)$selectedYear; ?>;
+    var selectedMonth = <?php echo (int)$selectedMonth; ?>; // 1-12
 
-  function getMonthLabel(year, month){
-    var monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                     'July', 'August', 'September', 'October', 'November', 'December'];
-    return monthNames[month - 1] + ' ' + year;
-  }
-  
-  function updateMonthDisplay(){
-    if(currentMonthYear) {
-      currentMonthYear.textContent = getMonthLabel(selectedYear, selectedMonth);
-    }
-  }
-  
-  function navigateMonth(direction){
-    if(direction === 'prev'){
-      selectedMonth -= 1;
-      if (selectedMonth < 1) { selectedMonth = 12; selectedYear -= 1; }
-    } else if(direction === 'next'){
-      selectedMonth += 1;
-      if (selectedMonth > 12) { selectedMonth = 1; selectedYear += 1; }
+    function getMonthLabel(year, month) {
+      var monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return monthNames[month - 1] + ' ' + year;
     }
 
-    // Reload page with new month/year so PHP recomputes stats
-    var url = new URL(window.location.href);
-    url.searchParams.set('year', String(selectedYear));
-    url.searchParams.set('month', String(selectedMonth));
-    window.location.href = url.toString();
-  }
-  
-  function renderActivityChart(){
-    // Sample data for demonstration (still static; cards & table are real)
-    var sampleData = [34, 28, 45, 32, 50, 38, 42, 29, 35, 41, 48, 33];
-    var maxValue = Math.max(...sampleData);
-    var activityBars = document.getElementById('activityBars');
-    
-    if(activityBars){
-      activityBars.innerHTML = '';
-      sampleData.forEach(function(value, index){
-        var height = (value / maxValue) * 100;
-        var div = document.createElement('div');
-        div.style.height = Math.max(8, height) + 'px';
-        div.style.background = 'linear-gradient(135deg,#0a5d39,#10b981)';
-        div.style.borderRadius = '4px 4px 0 0';
-        div.style.transition = 'all 0.2s ease';
-        div.style.cursor = 'pointer';
-        div.title = 'Day ' + (index + 1) + ': ' + value + ' tests';
-        div.addEventListener('mouseenter', function(){ 
-          this.style.opacity = '0.8'; 
-          this.style.transform = 'scaleY(1.1)';
+    function updateMonthDisplay() {
+      if (currentMonthYear) {
+        currentMonthYear.textContent = getMonthLabel(selectedYear, selectedMonth);
+      }
+    }
+
+    function navigateMonth(direction) {
+      if (direction === 'prev') {
+        selectedMonth -= 1;
+        if (selectedMonth < 1) {
+          selectedMonth = 12;
+          selectedYear -= 1;
+        }
+      } else if (direction === 'next') {
+        selectedMonth += 1;
+        if (selectedMonth > 12) {
+          selectedMonth = 1;
+          selectedYear += 1;
+        }
+      }
+
+      // Reload page with new month/year so PHP recomputes stats
+      var url = new URL(window.location.href);
+      url.searchParams.set('year', String(selectedYear));
+      url.searchParams.set('month', String(selectedMonth));
+      window.location.href = url.toString();
+    }
+
+    function renderActivityChart() {
+      // Sample data for demonstration (still static; cards & table are real)
+      var sampleData = [34, 28, 45, 32, 50, 38, 42, 29, 35, 41, 48, 33];
+      var maxValue = Math.max(...sampleData);
+      var activityBars = document.getElementById('activityBars');
+
+      if (activityBars) {
+        activityBars.innerHTML = '';
+        sampleData.forEach(function(value, index) {
+          var height = (value / maxValue) * 100;
+          var div = document.createElement('div');
+          div.style.height = Math.max(8, height) + 'px';
+          div.style.background = 'linear-gradient(135deg,#0a5d39,#10b981)';
+          div.style.borderRadius = '4px 4px 0 0';
+          div.style.transition = 'all 0.2s ease';
+          div.style.cursor = 'pointer';
+          div.title = 'Day ' + (index + 1) + ': ' + value + ' tests';
+          div.addEventListener('mouseenter', function() {
+            this.style.opacity = '0.8';
+            this.style.transform = 'scaleY(1.1)';
+          });
+          div.addEventListener('mouseleave', function() {
+            this.style.opacity = '1';
+            this.style.transform = 'scaleY(1)';
+          });
+          activityBars.appendChild(div);
         });
-        div.addEventListener('mouseleave', function(){ 
-          this.style.opacity = '1'; 
-          this.style.transform = 'scaleY(1)';
-        });
-        activityBars.appendChild(div);
-      });
+      }
     }
-  }
-  
-  // Add event listeners for navigation
-  if(prevMonthBtn) prevMonthBtn.addEventListener('click', function(e){ e.preventDefault(); navigateMonth('prev'); });
-  if(nextMonthBtn) prevMonthBtn && nextMonthBtn.addEventListener('click', function(e){ e.preventDefault(); navigateMonth('next'); });
-  
-  // Initialize on page load
-  updateMonthDisplay();
-  renderActivityChart();
-})();
+
+    // Add event listeners for navigation
+    if (prevMonthBtn) prevMonthBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      navigateMonth('prev');
+    });
+    if (nextMonthBtn) prevMonthBtn && nextMonthBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      navigateMonth('next');
+    });
+
+    // Initialize on page load
+    updateMonthDisplay();
+    renderActivityChart();
+  })();
 </script>
 
-<?php include __DIR__.'/../../includes/footer.php'; ?>
-
+<?php include __DIR__ . '/../../includes/footer.php'; ?>

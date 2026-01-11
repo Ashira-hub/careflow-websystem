@@ -54,7 +54,7 @@ if ($selectedDate < $today) {
 if ($selectedDate->format('Y-m-d') === $today->format('Y-m-d')) {
     $selectedDateTime = new DateTime($date . ' ' . $time);
     $now = new DateTime();
-    
+
     if ($selectedDateTime < $now) {
         http_response_code(400);
         echo json_encode(['error' => 'Cannot schedule for past time']);
@@ -134,4 +134,3 @@ echo json_encode([
     'message' => 'Schedule created successfully',
     'schedule' => $newSchedule
 ]);
-?>

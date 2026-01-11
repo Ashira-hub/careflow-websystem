@@ -9,8 +9,6 @@ try {
   while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     echo "Name: " . $row['full_name'] . " | Email: " . $row['email'] . "<br>";
   }
-
 } catch (PDOException $e) {
   echo "Connection failed: " . $e->getMessage();
 }
-?>
