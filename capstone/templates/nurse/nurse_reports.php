@@ -1,5 +1,5 @@
 <?php
-$page = 'Nurse Reports';
+$page = 'Analytics Dashboard';
 $storeFile = __DIR__ . '/../../data/nurse_prescriptions.json';
 function nr_escape($s)
 {
@@ -100,6 +100,68 @@ $activityKeys = array_keys($grouped);
 $activityCounts = array_values($grouped);
 $activityMax = $activityCounts ? max($activityCounts) : 0;
 
+$dailyRequests = [];
+for ($d = 1; $d <= $lastDay; $d++) {
+  $key = sprintf('%04d-%02d-%02d', $year, $month, $d);
+  $dailyRequests[$key] = 0;
+}
+foreach ($entries as $entry) {
+  $ts = nr_parse_ts($entry);
+  if (!$ts) continue;
+  $dayKey = date('Y-m-d', $ts);
+  if (array_key_exists($dayKey, $dailyRequests)) {
+    $dailyRequests[$dayKey] = (int)$dailyRequests[$dayKey] + 1;
+  }
+}
+
+$maxDaily = 0;
+foreach ($dailyRequests as $k => $v) {
+  $maxDaily = max($maxDaily, (int)$v);
+}
+if ($maxDaily <= 0) $maxDaily = 1;
+
+$prevFirstTs = mktime(0, 0, 0, $prevMonth, 1, $prevYear);
+$prevLastDay = (int)date('t', $prevFirstTs);
+$prevFromTs = $prevFirstTs;
+$prevToTs = mktime(23, 59, 59, $prevMonth, $prevLastDay, $prevYear);
+
+$prevEntries = array_filter(nr_load($storeFile), function ($item) use ($prevFromTs, $prevToTs) {
+  $ts = nr_parse_ts($item);
+  if (!$ts) return false;
+  if ($prevFromTs && $ts < $prevFromTs) return false;
+  if ($prevToTs && $ts > $prevToTs) return false;
+  return true;
+});
+
+$prevStatusCounts = [
+  'accepted' => 0,
+  'acknowledged' => 0,
+  'done' => 0,
+  'pending' => 0
+];
+foreach ($prevEntries as $entry) {
+  $status = strtolower((string)($entry['status'] ?? ''));
+  if (isset($prevStatusCounts[$status])) {
+    $prevStatusCounts[$status]++;
+  } else {
+    $prevStatusCounts['pending']++;
+  }
+}
+$prevTotalPrescriptions = count($prevEntries);
+$prevPendingTotal = $prevTotalPrescriptions - ($prevStatusCounts['accepted'] + $prevStatusCounts['acknowledged'] + $prevStatusCounts['done']);
+if ($prevPendingTotal > 0) {
+  $prevStatusCounts['pending'] = $prevPendingTotal;
+}
+
+function nr_delta_badge($delta)
+{
+  $d = (int)$delta;
+  $isPos = $d >= 0;
+  $color = $isPos ? '#16a34a' : '#dc2626';
+  $sign = $isPos ? '+' : '';
+  return '<span style="display:inline-flex;align-items:center;gap:6px;color:' . $color . ';font-weight:800;font-size:0.9rem;">' . ($isPos ? '↗' : '↘') . ' ' . $sign . $d . '</span>';
+}
+
 include __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -118,72 +180,303 @@ include __DIR__ . '/../../includes/header.php';
     </div>
   </aside>
 
-  <div>
-    <section class="card" style="margin-bottom:16px;">
-      <h2 class="dashboard-title" style="margin:0;">Reports</h2>
-      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;">
-        <div class="report-nav">
-          <a class="btn btn-outline report-nav-btn" href="?month=<?php echo $prevMonth; ?>&year=<?php echo $prevYear; ?>" aria-label="Previous month">
-            <span class="report-nav-icon">&#10094;</span>
-          </a>
-          <div class="report-nav-label-group">
-            <div class="report-nav-month"><?php echo nr_escape(date('F', $firstTs)); ?></div>
-            <div class="report-nav-year">
-              <?php echo nr_escape(date('Y', $firstTs)); ?>
-              <a class="btn btn-outline report-nav-btn" href="?month=<?php echo $nextMonth; ?>&year=<?php echo $nextYear; ?>" aria-label="Next month">
-                <span class="report-nav-icon">&#10095;</span>
-              </a>
+  <div class="content" style="width:100%;max-width:none;margin:0;">
+    <?php
+    $deltaRequests = (int)$totalPrescriptions - (int)$prevTotalPrescriptions;
+    $deltaAccepted = (int)($statusCounts['accepted'] ?? 0) - (int)($prevStatusCounts['accepted'] ?? 0);
+    $deltaAcknowledged = (int)($statusCounts['acknowledged'] ?? 0) - (int)($prevStatusCounts['acknowledged'] ?? 0);
+    $deltaDone = (int)($statusCounts['done'] ?? 0) - (int)($prevStatusCounts['done'] ?? 0);
+    ?>
+
+    <style>
+      .ad-page {
+        background: #f8fafc;
+      }
+
+      .ad-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .ad-title {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .ad-subtitle {
+        margin-top: 6px;
+        color: #64748b;
+        font-weight: 500;
+      }
+
+      .ad-month {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 12px 14px;
+        box-shadow: 0 2px 10px rgba(2, 6, 23, 0.04);
+      }
+
+      .ad-month a {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        text-decoration: none;
+        color: #0f172a;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+      }
+
+      .ad-month a:hover {
+        background: #f8fafc;
+      }
+
+      .ad-month-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        color: #0f172a;
+        min-width: 160px;
+        justify-content: center;
+      }
+
+      .ad-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .ad-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 2px 10px rgba(2, 6, 23, 0.04);
+        position: relative;
+      }
+
+      .ad-card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .ad-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ad-label {
+        margin-top: 14px;
+        color: #334155;
+        font-weight: 800;
+      }
+
+      .ad-value {
+        margin-top: 6px;
+        font-size: 38px;
+        font-weight: 900;
+        color: #0f172a;
+        line-height: 1;
+      }
+
+      .ad-meta {
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 0.9rem;
+      }
+
+      .ad-chart {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 2px 10px rgba(2, 6, 23, 0.04);
+      }
+
+      .ad-chart-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .ad-chart-title {
+        margin: 0;
+        font-weight: 900;
+        color: #0f172a;
+        font-size: 1.05rem;
+      }
+
+      .ad-chart-sub {
+        margin-top: 4px;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+
+      .ad-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        height: 190px;
+        padding: 12px 8px;
+        border-radius: 14px;
+        background: #ffffff;
+      }
+
+      .ad-bar {
+        flex: 1;
+        min-width: 6px;
+        border-radius: 8px 8px 0 0;
+        background: #e9d5ff;
+      }
+
+      @media (max-width: 900px) {
+        .ad-header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .ad-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .ad-month-label {
+          min-width: 120px;
+        }
+      }
+    </style>
+
+    <div class="ad-page">
+      <div class="ad-header">
+        <div>
+          <h2 class="ad-title">Analytics Dashboard</h2>
+          <div class="ad-subtitle">Track your nursing performance</div>
+        </div>
+        <div class="ad-month" aria-label="Month selector">
+          <a href="?month=<?php echo (int)$prevMonth; ?>&year=<?php echo (int)$prevYear; ?>" aria-label="Previous month">&#10094;</a>
+          <div class="ad-month-label">
+            <span style="width:32px;height:32px;border-radius:10px;background:#f3e8ff;display:flex;align-items:center;justify-content:center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </span>
+            <span><?php echo nr_escape(date('F Y', $firstTs)); ?></span>
+          </div>
+          <a href="?month=<?php echo (int)$nextMonth; ?>&year=<?php echo (int)$nextYear; ?>" aria-label="Next month">&#10095;</a>
+        </div>
+      </div>
+
+      <div class="ad-grid">
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#dbeafe;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
             </div>
+            <div><?php echo nr_delta_badge($deltaRequests); ?></div>
+          </div>
+          <div class="ad-label">Requests</div>
+          <div class="ad-value"><?php echo (int)$totalPrescriptions; ?></div>
+          <div class="ad-meta">Pending: <?php echo (int)($statusCounts['pending'] ?? 0); ?></div>
+        </div>
+
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#f3e8ff;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+              </svg>
+            </div>
+            <div><?php echo nr_delta_badge($deltaAccepted); ?></div>
+          </div>
+          <div class="ad-label">Accepted</div>
+          <div class="ad-value"><?php echo (int)($statusCounts['accepted'] ?? 0); ?></div>
+          <div class="ad-meta">This month</div>
+        </div>
+
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#dcfce7;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 11l3 3L22 4"></path>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+              </svg>
+            </div>
+            <div><?php echo nr_delta_badge($deltaAcknowledged); ?></div>
+          </div>
+          <div class="ad-label">Acknowledged</div>
+          <div class="ad-value"><?php echo (int)($statusCounts['acknowledged'] ?? 0); ?></div>
+          <div class="ad-meta">In progress</div>
+        </div>
+
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#ffedd5;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+            </div>
+            <div><?php echo nr_delta_badge($deltaDone); ?></div>
+          </div>
+          <div class="ad-label">Done</div>
+          <div class="ad-value"><?php echo (int)($statusCounts['done'] ?? 0); ?></div>
+          <div class="ad-meta">Completed</div>
+        </div>
+      </div>
+
+      <div class="ad-chart">
+        <div class="ad-chart-head">
+          <div>
+            <h3 class="ad-chart-title">Daily Requests</h3>
+            <div class="ad-chart-sub">Total: <?php echo (int)$totalPrescriptions; ?> requests</div>
+          </div>
+          <div style="width:36px;height:36px;border-radius:12px;background:#f3e8ff;display:flex;align-items:center;justify-content:center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
           </div>
         </div>
-      </div>
-    </section>
-
-    <section style="margin-bottom:16px;">
-      <div class="stat-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:stretch;">
-        <div class="stat-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;box-shadow:0 6px 18px rgba(0,0,0,0.06);">
-          <h4 style="margin:0 0 6px;font-size:1.05rem;">Requests</h4>
-          <div class="muted-small" style="margin-bottom:8px;">Filtered range</div>
-          <div class="stat-value" style="font-size:1.6rem;font-weight:800;line-height:1;">&nbsp;<?php echo nr_escape($totalPrescriptions); ?></div>
-        </div>
-        <div class="stat-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;box-shadow:0 6px 18px rgba(0,0,0,0.06);">
-          <h4 style="margin:0 0 6px;font-size:1.05rem;">Total Hours</h4>
-          <div class="muted-small" style="margin-bottom:8px;">Awaiting nurse action</div>
-          <div class="stat-value" style="font-size:1.6rem;font-weight:800;line-height:1;">&nbsp;<?php echo nr_escape($statusCounts['accepted']); ?></div>
-        </div>
-        <div class="stat-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;box-shadow:0 6px 18px rgba(0,0,0,0.06);">
-          <h4 style="margin:0 0 6px;font-size:1.05rem;">Active Shifts</h4>
-          <div class="muted-small" style="margin-bottom:8px;">In progress</div>
-          <div class="stat-value" style="font-size:1.6rem;font-weight:800;line-height:1;">&nbsp;<?php echo nr_escape($statusCounts['acknowledged']); ?></div>
+        <div class="ad-bars" aria-label="Daily requests bar chart">
+          <?php foreach ($dailyRequests as $day => $cnt): $h = max(6, (int)round(((int)$cnt / $maxDaily) * 100)); ?>
+            <div class="ad-bar" title="<?php echo nr_escape($day); ?>: <?php echo (int)$cnt; ?>" style="height:<?php echo (int)$h; ?>%;"></div>
+          <?php endforeach; ?>
         </div>
       </div>
-    </section>
-
-    <section class="two-col" style="display:block;">
-      <div class="card" style="width:100%;">
-        <h3 style="margin-top:0;">Top Patients</h3>
-        <?php if ($topPatients): ?>
-          <table>
-            <thead>
-              <tr>
-                <th>Patient</th>
-                <th>Prescriptions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($topPatients as $patient => $count): ?>
-                <tr>
-                  <td><?php echo nr_escape($patient); ?></td>
-                  <td><?php echo nr_escape($count); ?></td>
-                </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        <?php else: ?>
-          <div class="muted">No prescription activity for the selected dates.</div>
-        <?php endif; ?>
-      </div>
-    </section>
+    </div>
 
   </div>
 </div>

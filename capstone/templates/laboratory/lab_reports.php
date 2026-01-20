@@ -1,5 +1,5 @@
 <?php
-$page = 'Lab Reports';
+$page = 'Analytics Dashboard';
 require_once __DIR__ . '/../../config/db.php';
 if (session_status() === PHP_SESSION_NONE) {
   session_start();
@@ -16,9 +16,38 @@ if ($selectedMonth < 1 || $selectedMonth > 12) {
 }
 $selectedMonthStart = sprintf('%04d-%02d-01', $selectedYear, $selectedMonth);
 
+$monthStart = $selectedMonthStart;
+$monthEnd = date('Y-m-t', strtotime($monthStart));
+$fromDate = $monthStart;
+$toDate = $monthEnd;
+
+$prevTs = mktime(0, 0, 0, $selectedMonth - 1, 1, $selectedYear);
+$nextTs = mktime(0, 0, 0, $selectedMonth + 1, 1, $selectedYear);
+$prevMonth = (int)date('n', $prevTs);
+$prevYear = (int)date('Y', $prevTs);
+$nextMonth = (int)date('n', $nextTs);
+$nextYear = (int)date('Y', $nextTs);
+
+$prevMonthStart = sprintf('%04d-%02d-01', $prevYear, $prevMonth);
+$prevMonthEnd = date('Y-m-t', strtotime($prevMonthStart));
+$prevFromDate = $prevMonthStart;
+$prevToDate = $prevMonthEnd;
+
 $testsThisMonth = 0;
 $patientsThisMonth = 0;
+$testTypesThisMonth = 0;
+$avgTestsPerDay = 0;
 $recentReports = [];
+$dailyTests = [];
+$prevTestsThisMonth = 0;
+$prevPatientsThisMonth = 0;
+$prevTestTypesThisMonth = 0;
+$prevAvgTestsPerDay = 0;
+
+function lr_escape($v)
+{
+  return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+}
 try {
   $pdo = get_pdo();
   // Discover columns to choose appropriate date/owner fields
@@ -38,11 +67,24 @@ try {
     $dateExpr = 'created_at::date';
   }
 
-  $where = "date_trunc('month', $dateExpr) = date_trunc('month', :month_start::date)";
-  $params = [':month_start' => $selectedMonthStart];
+  $where = "$dateExpr >= :from_d::date AND $dateExpr <= :to_d::date";
+  $params = [
+    ':from_d' => $fromDate,
+    ':to_d' => $toDate,
+  ];
   if ($hasCreatedById && !empty($_SESSION['user']['id'])) {
     $where .= ' AND created_by_user_id = :uid';
     $params[':uid'] = (int)$_SESSION['user']['id'];
+  }
+
+  $prevWhere = "$dateExpr >= :from_d::date AND $dateExpr <= :to_d::date";
+  $prevParams = [
+    ':from_d' => $prevFromDate,
+    ':to_d' => $prevToDate,
+  ];
+  if ($hasCreatedById && !empty($_SESSION['user']['id'])) {
+    $prevWhere .= ' AND created_by_user_id = :uid';
+    $prevParams[':uid'] = (int)$_SESSION['user']['id'];
   }
 
   // Total tests this month
@@ -57,17 +99,58 @@ try {
   $stmt->execute($params);
   $patientsThisMonth = (int)($stmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
 
+  $sqlTypes = "SELECT COUNT(DISTINCT test_name)::int AS c FROM lab_tests WHERE $where";
+  $stmt = $pdo->prepare($sqlTypes);
+  $stmt->execute($params);
+  $testTypesThisMonth = (int)($stmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+
   // Per-test counts for this month (recent reports table)
   $sqlRecent = "SELECT test_name, COUNT(*)::int AS c FROM lab_tests WHERE $where GROUP BY test_name ORDER BY c DESC, test_name ASC LIMIT 10";
   $stmt = $pdo->prepare($sqlRecent);
   $stmt->execute($params);
   $recentReports = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+  $daysInMonth = (int)date('t', strtotime($monthStart));
+  for ($d = 1; $d <= $daysInMonth; $d++) {
+    $key = sprintf('%04d-%02d-%02d', $selectedYear, $selectedMonth, $d);
+    $dailyTests[$key] = 0;
+  }
+  $sqlDaily = "SELECT $dateExpr AS d, COUNT(*)::int AS c FROM lab_tests WHERE $where GROUP BY d ORDER BY d ASC";
+  $stmt = $pdo->prepare($sqlDaily);
+  $stmt->execute($params);
+  $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  foreach ($rows as $r) {
+    $dd = isset($r['d']) ? substr((string)$r['d'], 0, 10) : '';
+    if ($dd !== '' && array_key_exists($dd, $dailyTests)) {
+      $dailyTests[$dd] = (int)($r['c'] ?? 0);
+    }
+  }
+
+  $avgTestsPerDay = $daysInMonth > 0 ? (int)round(((int)$testsThisMonth) / $daysInMonth) : 0;
+
+  $stmt = $pdo->prepare("SELECT COUNT(*)::int AS c FROM lab_tests WHERE $prevWhere");
+  $stmt->execute($prevParams);
+  $prevTestsThisMonth = (int)($stmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+
+  $stmt = $pdo->prepare("SELECT COUNT(DISTINCT patient)::int AS c FROM lab_tests WHERE $prevWhere");
+  $stmt->execute($prevParams);
+  $prevPatientsThisMonth = (int)($stmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+
+  $stmt = $pdo->prepare("SELECT COUNT(DISTINCT test_name)::int AS c FROM lab_tests WHERE $prevWhere");
+  $stmt->execute($prevParams);
+  $prevTestTypesThisMonth = (int)($stmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+
+  $prevDaysInMonth = (int)date('t', strtotime($prevMonthStart));
+  $prevAvgTestsPerDay = $prevDaysInMonth > 0 ? (int)round(((int)$prevTestsThisMonth) / $prevDaysInMonth) : 0;
 } catch (Throwable $e) {
   // Keep page usable even if stats fail
   error_log('Failed to load lab report stats: ' . $e->getMessage());
   $testsThisMonth = 0;
   $patientsThisMonth = 0;
+  $testTypesThisMonth = 0;
+  $avgTestsPerDay = 0;
   $recentReports = [];
+  $dailyTests = [];
 }
 
 include __DIR__ . '/../../includes/header.php';
@@ -88,170 +171,318 @@ include __DIR__ . '/../../includes/header.php';
     </div>
   </aside>
 
-  <div>
-    <section class="card" style="margin-bottom:16px;">
-      <h2 class="dashboard-title" style="margin:0;">Reports</h2>
-      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;">
-        <div class="report-nav">
-          <a class="btn btn-outline report-nav-btn" href="#" id="prevMonth" aria-label="Previous month">
-            <span class="report-nav-icon">&#10094;</span>
-          </a>
-          <div class="report-nav-label-group">
-            <div class="report-nav-month"><span id="currentMonthYear"></span></div>
-            <div class="report-nav-year">
-              <a class="btn btn-outline report-nav-btn" href="#" id="nextMonth" aria-label="Next month">
-                <span class="report-nav-icon">&#10095;</span>
-              </a>
+  <div class="content" style="width:100%;max-width:none;margin:0;">
+    <?php
+    $deltaTests = (int)$testsThisMonth - (int)$prevTestsThisMonth;
+    $deltaPatients = (int)$patientsThisMonth - (int)$prevPatientsThisMonth;
+    $deltaTypes = (int)$testTypesThisMonth - (int)$prevTestTypesThisMonth;
+    $deltaAvg = (int)$avgTestsPerDay - (int)$prevAvgTestsPerDay;
+
+    function lr_delta_badge($delta)
+    {
+      $d = (int)$delta;
+      $isPos = $d >= 0;
+      $color = $isPos ? '#16a34a' : '#dc2626';
+      $sign = $isPos ? '+' : '';
+      return '<span style="display:inline-flex;align-items:center;gap:6px;color:' . $color . ';font-weight:800;font-size:0.9rem;">' . ($isPos ? '↗' : '↘') . ' ' . $sign . $d . '</span>';
+    }
+
+    $maxDaily = 0;
+    foreach ($dailyTests as $k => $v) {
+      $maxDaily = max($maxDaily, (int)$v);
+    }
+    if ($maxDaily <= 0) $maxDaily = 1;
+    ?>
+
+    <style>
+      .ad-page {
+        background: #f8fafc;
+      }
+
+      .ad-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .ad-title {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .ad-subtitle {
+        margin-top: 6px;
+        color: #64748b;
+        font-weight: 500;
+      }
+
+      .ad-month {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 12px 14px;
+        box-shadow: 0 2px 10px rgba(2, 6, 23, 0.04);
+      }
+
+      .ad-month a {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        text-decoration: none;
+        color: #0f172a;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+      }
+
+      .ad-month a:hover {
+        background: #f8fafc;
+      }
+
+      .ad-month-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        color: #0f172a;
+        min-width: 160px;
+        justify-content: center;
+      }
+
+      .ad-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .ad-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 2px 10px rgba(2, 6, 23, 0.04);
+        position: relative;
+      }
+
+      .ad-card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .ad-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ad-label {
+        margin-top: 14px;
+        color: #334155;
+        font-weight: 800;
+      }
+
+      .ad-value {
+        margin-top: 6px;
+        font-size: 38px;
+        font-weight: 900;
+        color: #0f172a;
+        line-height: 1;
+      }
+
+      .ad-meta {
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 0.9rem;
+      }
+
+      .ad-chart {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 2px 10px rgba(2, 6, 23, 0.04);
+      }
+
+      .ad-chart-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .ad-chart-title {
+        margin: 0;
+        font-weight: 900;
+        color: #0f172a;
+        font-size: 1.05rem;
+      }
+
+      .ad-chart-sub {
+        margin-top: 4px;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+
+      .ad-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        height: 190px;
+        padding: 12px 8px;
+        border-radius: 14px;
+        background: #ffffff;
+      }
+
+      .ad-bar {
+        flex: 1;
+        min-width: 6px;
+        border-radius: 8px 8px 0 0;
+        background: #e9d5ff;
+      }
+
+      @media (max-width: 900px) {
+        .ad-header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .ad-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .ad-month-label {
+          min-width: 120px;
+        }
+      }
+    </style>
+
+    <div class="ad-page">
+      <div class="ad-header">
+        <div>
+          <h2 class="ad-title">Analytics Dashboard</h2>
+          <div class="ad-subtitle">Track your laboratory performance</div>
+        </div>
+        <div class="ad-month" aria-label="Month selector">
+          <a href="?month=<?php echo (int)$prevMonth; ?>&year=<?php echo (int)$prevYear; ?>" aria-label="Previous month">&#10094;</a>
+          <div class="ad-month-label">
+            <span style="width:32px;height:32px;border-radius:10px;background:#f3e8ff;display:flex;align-items:center;justify-content:center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </span>
+            <span><?php echo lr_escape(date('F Y', strtotime($monthStart))); ?></span>
+          </div>
+          <a href="?month=<?php echo (int)$nextMonth; ?>&year=<?php echo (int)$nextYear; ?>" aria-label="Next month">&#10095;</a>
+        </div>
+      </div>
+
+      <div class="ad-grid">
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#dbeafe;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12h4l2-5 4 10 2-5h4"></path>
+              </svg>
             </div>
+            <div><?php echo lr_delta_badge($deltaTests); ?></div>
           </div>
+          <div class="ad-label">Tests</div>
+          <div class="ad-value"><?php echo (int)$testsThisMonth; ?></div>
+          <div class="ad-meta">This month</div>
         </div>
-      </div>
-    </section>
 
-    <section style="margin-bottom:16px;">
-      <div class="stat-cards" style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
-        <div class="stat-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-          <h4 style="margin:0 0 8px;color:#0f172a;font-size:1rem;font-weight:600;">Tests</h4>
-          <div class="muted-small" style="color:#64748b;font-size:0.85rem;margin-bottom:8px;">This month</div>
-          <div class="stat-value" style="font-size:2rem;font-weight:700;color:#0a5d39;">
-            <?php echo (int)$testsThisMonth; ?>
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#f3e8ff;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+            <div><?php echo lr_delta_badge($deltaPatients); ?></div>
           </div>
+          <div class="ad-label">Unique Patients</div>
+          <div class="ad-value"><?php echo (int)$patientsThisMonth; ?></div>
+          <div class="ad-meta">This month</div>
         </div>
-        <div class="stat-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-          <h4 style="margin:0 0 8px;color:#0f172a;font-size:1rem;font-weight:600;">Total Patient</h4>
-          <div class="muted-small" style="color:#64748b;font-size:0.85rem;margin-bottom:8px;">This month</div>
-          <div class="stat-value" style="font-size:2rem;font-weight:700;color:#0a5d39;">
-            <?php echo (int)$patientsThisMonth; ?>
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <section style="display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:16px;">
-      <div class="card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-        <h3 style="margin:0 0 16px;color:#0f172a;font-size:1.1rem;font-weight:600;">Recent Reports</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="border-bottom:1px solid #e5e7eb;">
-              <th style="padding:8px 0;text-align:left;font-weight:600;color:#0f172a;font-size:0.9rem;">Test</th>
-              <th style="padding:8px 0;text-align:right;font-weight:600;color:#0f172a;font-size:0.9rem;">Count (this month)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php if (empty($recentReports)): ?>
-              <tr>
-                <td colspan="2" style="padding:12px 0;text-align:center;color:#64748b;font-size:0.9rem;">
-                  No tests recorded this month.
-                </td>
-              </tr>
-            <?php else: ?>
-              <?php foreach ($recentReports as $row): ?>
-                <tr style="border-bottom:1px solid #f1f5f9;">
-                  <td style="padding:8px 0;color:#0f172a;font-size:0.9rem;">
-                    <?php echo htmlspecialchars($row['test_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
-                  </td>
-                  <td style="padding:8px 0;text-align:right;color:#64748b;font-size:0.9rem;font-weight:600;">
-                    <?php echo (int)($row['c'] ?? 0); ?>
-                  </td>
-                </tr>
-              <?php endforeach; ?>
-            <?php endif; ?>
-          </tbody>
-        </table>
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#dcfce7;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <div><?php echo lr_delta_badge($deltaTypes); ?></div>
+          </div>
+          <div class="ad-label">Test Types</div>
+          <div class="ad-value"><?php echo (int)$testTypesThisMonth; ?></div>
+          <div class="ad-meta">Distinct</div>
+        </div>
+
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#ffedd5;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"></path>
+                <path d="M7 13v5"></path>
+                <path d="M12 9v9"></path>
+                <path d="M17 6v12"></path>
+              </svg>
+            </div>
+            <div><?php echo lr_delta_badge($deltaAvg); ?></div>
+          </div>
+          <div class="ad-label">Avg / Day</div>
+          <div class="ad-value"><?php echo (int)$avgTestsPerDay; ?></div>
+          <div class="ad-meta">Approx.</div>
+        </div>
       </div>
-    </section>
+
+      <div class="ad-chart">
+        <div class="ad-chart-head">
+          <div>
+            <h3 class="ad-chart-title">Daily Tests</h3>
+            <div class="ad-chart-sub">Total: <?php echo (int)$testsThisMonth; ?> tests</div>
+          </div>
+          <div style="width:36px;height:36px;border-radius:12px;background:#f3e8ff;display:flex;align-items:center;justify-content:center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+        </div>
+        <div class="ad-bars" aria-label="Daily tests bar chart">
+          <?php foreach ($dailyTests as $day => $cnt): $h = max(6, (int)round(((int)$cnt / $maxDaily) * 100)); ?>
+            <div class="ad-bar" title="<?php echo lr_escape($day); ?>: <?php echo (int)$cnt; ?>" style="height:<?php echo (int)$h; ?>%;"></div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
-
-<script>
-  (function() {
-    var currentMonthYear = document.getElementById('currentMonthYear');
-    var prevMonthBtn = document.getElementById('prevMonth');
-    var nextMonthBtn = document.getElementById('nextMonth');
-
-    // Initialize from PHP-selected month/year
-    var selectedYear = <?php echo (int)$selectedYear; ?>;
-    var selectedMonth = <?php echo (int)$selectedMonth; ?>; // 1-12
-
-    function getMonthLabel(year, month) {
-      var monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-      ];
-      return monthNames[month - 1] + ' ' + year;
-    }
-
-    function updateMonthDisplay() {
-      if (currentMonthYear) {
-        currentMonthYear.textContent = getMonthLabel(selectedYear, selectedMonth);
-      }
-    }
-
-    function navigateMonth(direction) {
-      if (direction === 'prev') {
-        selectedMonth -= 1;
-        if (selectedMonth < 1) {
-          selectedMonth = 12;
-          selectedYear -= 1;
-        }
-      } else if (direction === 'next') {
-        selectedMonth += 1;
-        if (selectedMonth > 12) {
-          selectedMonth = 1;
-          selectedYear += 1;
-        }
-      }
-
-      // Reload page with new month/year so PHP recomputes stats
-      var url = new URL(window.location.href);
-      url.searchParams.set('year', String(selectedYear));
-      url.searchParams.set('month', String(selectedMonth));
-      window.location.href = url.toString();
-    }
-
-    function renderActivityChart() {
-      // Sample data for demonstration (still static; cards & table are real)
-      var sampleData = [34, 28, 45, 32, 50, 38, 42, 29, 35, 41, 48, 33];
-      var maxValue = Math.max(...sampleData);
-      var activityBars = document.getElementById('activityBars');
-
-      if (activityBars) {
-        activityBars.innerHTML = '';
-        sampleData.forEach(function(value, index) {
-          var height = (value / maxValue) * 100;
-          var div = document.createElement('div');
-          div.style.height = Math.max(8, height) + 'px';
-          div.style.background = 'linear-gradient(135deg,#0a5d39,#10b981)';
-          div.style.borderRadius = '4px 4px 0 0';
-          div.style.transition = 'all 0.2s ease';
-          div.style.cursor = 'pointer';
-          div.title = 'Day ' + (index + 1) + ': ' + value + ' tests';
-          div.addEventListener('mouseenter', function() {
-            this.style.opacity = '0.8';
-            this.style.transform = 'scaleY(1.1)';
-          });
-          div.addEventListener('mouseleave', function() {
-            this.style.opacity = '1';
-            this.style.transform = 'scaleY(1)';
-          });
-          activityBars.appendChild(div);
-        });
-      }
-    }
-
-    // Add event listeners for navigation
-    if (prevMonthBtn) prevMonthBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      navigateMonth('prev');
-    });
-    if (nextMonthBtn) prevMonthBtn && nextMonthBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      navigateMonth('next');
-    });
-
-    // Initialize on page load
-    updateMonthDisplay();
-    renderActivityChart();
-  })();
-</script>
-
 <?php include __DIR__ . '/../../includes/footer.php'; ?>
