@@ -1,4 +1,4 @@
-<?php $page = 'Doctor Reports';
+<?php $page = 'Analytics Dashboard';
 include __DIR__ . '/../../includes/header.php'; ?>
 
 <div class="layout-sidebar full-bleed" style="padding: 24px 20px;">
@@ -17,7 +17,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
     </div>
   </aside>
 
-  <div>
+  <div class="content" style="max-width:1200px;margin:0 auto;">
     <?php
     require_once __DIR__ . '/../../config/db.php';
     if (session_status() === PHP_SESSION_NONE) {
@@ -48,12 +48,24 @@ include __DIR__ . '/../../includes/header.php'; ?>
     $nextMonth = (int)date('n', $nextTs);
     $nextYear = (int)date('Y', $nextTs);
 
+    $prevMonthStart = sprintf('%04d-%02d-01', $prevYear, $prevMonth);
+    $prevMonthEnd = date('Y-m-t', strtotime($prevMonthStart));
+    $prevFromDate = $prevMonthStart;
+    $prevToDate = $prevMonthEnd;
+    $prevFromTs = $prevFromDate . ' 00:00:00';
+    $prevToTsExclusive = date('Y-m-d', strtotime($prevToDate . ' +1 day')) . ' 00:00:00';
+
     $kpiPatients = 0;
     $kpiApptsTotal = 0;
     $kpiApptsDone = 0;
     $kpiApptsPending = 0;
     $kpiRxTotal = 0;
     $kpiLabReqTotal = 0;
+    $prevKpiPatients = 0;
+    $prevKpiApptsTotal = 0;
+    $prevKpiApptsDone = 0;
+    $prevKpiRxTotal = 0;
+    $prevKpiLabReqTotal = 0;
     $rxStatusCounts = [];
     $dailyAppts = [];
     $dailyRx = [];
@@ -86,6 +98,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
       $apRows = $stmtAp->fetchAll(PDO::FETCH_ASSOC) ?: [];
       $patientCounts = [];
       $patientSet = [];
+      $prevPatientSet = [];
       foreach ($apRows as $r) {
         $kpiApptsTotal++;
         $isDone = (bool)($r['done'] ?? false);
@@ -102,6 +115,25 @@ include __DIR__ . '/../../includes/header.php'; ?>
         $dd = isset($r['d']) ? substr((string)$r['d'], 0, 10) : '';
         if ($dd !== '' && array_key_exists($dd, $dailyAppts)) {
           $dailyAppts[$dd] = (int)$dailyAppts[$dd] + 1;
+        }
+      }
+
+      $stmtApPrev = $pdo->prepare('SELECT patient, COALESCE(done, false) AS done FROM appointments WHERE created_by_user_id = :uid AND "date"::date >= :from_d AND "date"::date <= :to_d');
+      $stmtApPrev->execute([
+        ':uid' => $uid,
+        ':from_d' => $prevFromDate,
+        ':to_d' => $prevToDate,
+      ]);
+      $apPrevRows = $stmtApPrev->fetchAll(PDO::FETCH_ASSOC) ?: [];
+      foreach ($apPrevRows as $r) {
+        $prevKpiApptsTotal++;
+        $isDone = (bool)($r['done'] ?? false);
+        if ($isDone) {
+          $prevKpiApptsDone++;
+        }
+        $p = trim((string)($r['patient'] ?? ''));
+        if ($p !== '') {
+          $prevPatientSet[$p] = true;
         }
       }
 
@@ -155,6 +187,32 @@ include __DIR__ . '/../../includes/header.php'; ?>
         }
       }
 
+      if ($rxHasOwner) {
+        $sqlRxPrev = 'SELECT patient_name FROM prescription WHERE created_by_user_id = :uid AND created_at >= :from_ts AND created_at < :to_ts';
+        $stmtRxPrev = $pdo->prepare($sqlRxPrev);
+        $stmtRxPrev->execute([
+          ':uid' => $uid,
+          ':from_ts' => $prevFromTs,
+          ':to_ts' => $prevToTsExclusive,
+        ]);
+      } else {
+        $sqlRxPrev = 'SELECT patient_name FROM prescription WHERE doctor_name = :doctor_name AND created_at >= :from_ts AND created_at < :to_ts';
+        $stmtRxPrev = $pdo->prepare($sqlRxPrev);
+        $stmtRxPrev->execute([
+          ':doctor_name' => $doctorName,
+          ':from_ts' => $prevFromTs,
+          ':to_ts' => $prevToTsExclusive,
+        ]);
+      }
+      $rxPrevRows = $stmtRxPrev->fetchAll(PDO::FETCH_ASSOC) ?: [];
+      foreach ($rxPrevRows as $r) {
+        $prevKpiRxTotal++;
+        $p = trim((string)($r['patient_name'] ?? ''));
+        if ($p !== '') {
+          $prevPatientSet[$p] = true;
+        }
+      }
+
       // Lab Requests Sent (from notifications table; best-effort)
       try {
         $stmtLab = $pdo->prepare("SELECT COUNT(*)::int AS c FROM notifications WHERE role = 'laboratory' AND doctor_id = :uid AND time >= :from_ts::timestamptz AND time < :to_ts::timestamptz");
@@ -168,7 +226,20 @@ include __DIR__ . '/../../includes/header.php'; ?>
         $kpiLabReqTotal = 0;
       }
 
+      try {
+        $stmtLabPrev = $pdo->prepare("SELECT COUNT(*)::int AS c FROM notifications WHERE role = 'laboratory' AND doctor_id = :uid AND time >= :from_ts::timestamptz AND time < :to_ts::timestamptz");
+        $stmtLabPrev->execute([
+          ':uid' => $uid,
+          ':from_ts' => $prevFromTs,
+          ':to_ts' => $prevToTsExclusive,
+        ]);
+        $prevKpiLabReqTotal = (int)($stmtLabPrev->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+      } catch (Throwable $e) {
+        $prevKpiLabReqTotal = 0;
+      }
+
       $kpiPatients = count($patientSet);
+      $prevKpiPatients = isset($prevPatientSet) && is_array($prevPatientSet) ? count($prevPatientSet) : 0;
 
       arsort($patientCounts);
       foreach (array_slice($patientCounts, 0, 10, true) as $name => $cnt) {
@@ -187,148 +258,318 @@ include __DIR__ . '/../../includes/header.php'; ?>
     foreach ($dailyAppts as $k => $v) {
       $maxDaily = max($maxDaily, (int)$v);
     }
-    foreach ($dailyRx as $k => $v) {
-      $maxDaily = max($maxDaily, (int)$v);
-    }
     if ($maxDaily <= 0) $maxDaily = 1;
+
+    $deltaPatients = (int)$kpiPatients - (int)$prevKpiPatients;
+    $deltaAppts = (int)$kpiApptsTotal - (int)$prevKpiApptsTotal;
+    $deltaRx = (int)$kpiRxTotal - (int)$prevKpiRxTotal;
+    $deltaLab = (int)$kpiLabReqTotal - (int)$prevKpiLabReqTotal;
+
+    function dr_delta_badge($delta)
+    {
+      $d = (int)$delta;
+      $isPos = $d >= 0;
+      $color = $isPos ? '#16a34a' : '#dc2626';
+      $sign = $isPos ? '+' : '';
+      return '<span style="display:inline-flex;align-items:center;gap:6px;color:' . $color . ';font-weight:800;font-size:0.9rem;">' . ($isPos ? '↗' : '↘') . ' ' . $sign . $d . '</span>';
+    }
     ?>
 
-    <section class="card" style="margin-bottom:16px;">
-      <h2 class="dashboard-title" style="margin:0;">Analytics Reports</h2>
-      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
-        <a href="?month=<?php echo (int)$prevMonth; ?>&year=<?php echo (int)$prevYear; ?>" aria-label="Previous month" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #0a5d39;border-radius:8px;color:#0a5d39;background:#fff;text-decoration:none;">
-          &#10094;
-        </a>
-        <span style="color:#0a5d39;font-weight:700;"><?php echo dr_escape(date('F Y', strtotime($monthStart))); ?></span>
-        <a href="?month=<?php echo (int)$nextMonth; ?>&year=<?php echo (int)$nextYear; ?>" aria-label="Next month" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #0a5d39;border-radius:8px;color:#0a5d39;background:#fff;text-decoration:none;">
-          &#10095;
-        </a>
-        <span class="muted" style="color:#64748b;"><?php echo dr_escape($toDate); ?></span>
-      </div>
-      <?php if ($reportError !== ''): ?>
-        <div class="muted" style="margin-top:10px;color:#b91c1c;"><?php echo dr_escape($reportError); ?></div>
-      <?php endif; ?>
-    </section>
+    <style>
+      .ad-page {
+        background: #f8fafc;
+      }
 
-    <section style="margin-bottom:16px;">
-      <div class="stat-cards" style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;">
-        <div class="stat-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-          <h4 style="margin:0 0 8px;color:#0f172a;font-size:1rem;font-weight:600;">Patients</h4>
-          <div class="muted-small" style="color:#64748b;font-size:0.85rem;margin-bottom:8px;">Unique this month</div>
-          <div class="stat-value" style="font-size:2rem;font-weight:700;color:#0a5d39;"><?php echo (int)$kpiPatients; ?></div>
+      .ad-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .ad-title {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .ad-subtitle {
+        margin-top: 6px;
+        color: #64748b;
+        font-weight: 500;
+      }
+
+      .ad-month {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 12px 14px;
+        box-shadow: 0 2px 10px rgba(2, 6, 23, 0.04);
+      }
+
+      .ad-month a {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        text-decoration: none;
+        color: #0f172a;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+      }
+
+      .ad-month a:hover {
+        background: #f8fafc;
+      }
+
+      .ad-month-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        color: #0f172a;
+        min-width: 160px;
+        justify-content: center;
+      }
+
+      .ad-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .ad-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 2px 10px rgba(2, 6, 23, 0.04);
+        position: relative;
+      }
+
+      .ad-card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .ad-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ad-label {
+        margin-top: 14px;
+        color: #334155;
+        font-weight: 800;
+      }
+
+      .ad-value {
+        margin-top: 6px;
+        font-size: 38px;
+        font-weight: 900;
+        color: #0f172a;
+        line-height: 1;
+      }
+
+      .ad-meta {
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 0.9rem;
+      }
+
+      .ad-chart {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 2px 10px rgba(2, 6, 23, 0.04);
+      }
+
+      .ad-chart-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .ad-chart-title {
+        margin: 0;
+        font-weight: 900;
+        color: #0f172a;
+        font-size: 1.05rem;
+      }
+
+      .ad-chart-sub {
+        margin-top: 4px;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+
+      .ad-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        height: 190px;
+        padding: 12px 8px;
+        border-radius: 14px;
+        background: #ffffff;
+      }
+
+      .ad-bar {
+        flex: 1;
+        min-width: 6px;
+        border-radius: 8px 8px 0 0;
+        background: #e9d5ff;
+      }
+
+      @media (max-width: 900px) {
+        .ad-header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .ad-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .ad-month-label {
+          min-width: 120px;
+        }
+      }
+    </style>
+
+    <div class="ad-page">
+      <div class="ad-header">
+        <div>
+          <h2 class="ad-title">Analytics Dashboard</h2>
+          <div class="ad-subtitle">Track your practice performance</div>
+          <?php if ($reportError !== ''): ?>
+            <div class="muted" style="margin-top:10px;color:#b91c1c;"><?php echo dr_escape($reportError); ?></div>
+          <?php endif; ?>
         </div>
-        <div class="stat-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-          <h4 style="margin:0 0 8px;color:#0f172a;font-size:1rem;font-weight:600;">Appointments</h4>
-          <div class="muted-small" style="color:#64748b;font-size:0.85rem;margin-bottom:8px;">Total</div>
-          <div class="stat-value" style="font-size:2rem;font-weight:700;color:#0a5d39;"><?php echo (int)$kpiApptsTotal; ?></div>
-        </div>
-        <div class="stat-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-          <h4 style="margin:0 0 8px;color:#0f172a;font-size:1rem;font-weight:600;">Appointments</h4>
-          <div class="muted-small" style="color:#64748b;font-size:0.85rem;margin-bottom:8px;">Completed</div>
-          <div class="stat-value" style="font-size:2rem;font-weight:700;color:#0a5d39;"><?php echo (int)$kpiApptsDone; ?></div>
-        </div>
-        <div class="stat-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-          <h4 style="margin:0 0 8px;color:#0f172a;font-size:1rem;font-weight:600;">Prescriptions</h4>
-          <div class="muted-small" style="color:#64748b;font-size:0.85rem;margin-bottom:8px;">Created</div>
-          <div class="stat-value" style="font-size:2rem;font-weight:700;color:#0a5d39;"><?php echo (int)$kpiRxTotal; ?></div>
-        </div>
-        <div class="stat-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-          <h4 style="margin:0 0 8px;color:#0f172a;font-size:1rem;font-weight:600;">Lab Requests</h4>
-          <div class="muted-small" style="color:#64748b;font-size:0.85rem;margin-bottom:8px;">Sent</div>
-          <div class="stat-value" style="font-size:2rem;font-weight:700;color:#0a5d39;"><?php echo (int)$kpiLabReqTotal; ?></div>
+        <div class="ad-month" aria-label="Month selector">
+          <a href="?month=<?php echo (int)$prevMonth; ?>&year=<?php echo (int)$prevYear; ?>" aria-label="Previous month">&#10094;</a>
+          <div class="ad-month-label">
+            <span style="width:32px;height:32px;border-radius:10px;background:#f3e8ff;display:flex;align-items:center;justify-content:center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </span>
+            <span><?php echo dr_escape(date('F Y', strtotime($monthStart))); ?></span>
+          </div>
+          <a href="?month=<?php echo (int)$nextMonth; ?>&year=<?php echo (int)$nextYear; ?>" aria-label="Next month">&#10095;</a>
         </div>
       </div>
-    </section>
 
-    <section style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-      <div class="card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-        <h3 style="margin:0 0 14px;color:#0f172a;font-size:1.1rem;font-weight:600;">Daily Activity (Appointments)</h3>
-        <div style="display:flex;align-items:flex-end;gap:4px;height:120px;padding:8px 4px;border:1px solid #f1f5f9;border-radius:12px;background:#fbfdff;">
-          <?php foreach ($dailyAppts as $day => $cnt): $h = max(6, (int)round(((int)$cnt / $maxDaily) * 100)); ?>
-            <div title="<?php echo dr_escape($day); ?>: <?php echo (int)$cnt; ?>" style="flex:1;min-width:2px;height:<?php echo (int)$h; ?>%;background:linear-gradient(135deg,#0a5d39,#10b981);border-radius:6px 6px 0 0;"></div>
-          <?php endforeach; ?>
-        </div>
-        <div class="muted-small" style="margin-top:8px;color:#64748b;font-size:0.85rem;">Hover bars for counts.</div>
-      </div>
-
-      <div class="card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-        <h3 style="margin:0 0 14px;color:#0f172a;font-size:1.1rem;font-weight:600;">Daily Activity (Prescriptions)</h3>
-        <div style="display:flex;align-items:flex-end;gap:4px;height:120px;padding:8px 4px;border:1px solid #f1f5f9;border-radius:12px;background:#fbfdff;">
-          <?php foreach ($dailyRx as $day => $cnt): $h = max(6, (int)round(((int)$cnt / $maxDaily) * 100)); ?>
-            <div title="<?php echo dr_escape($day); ?>: <?php echo (int)$cnt; ?>" style="flex:1;min-width:2px;height:<?php echo (int)$h; ?>%;background:linear-gradient(135deg,#0a5d39,#10b981);border-radius:6px 6px 0 0;"></div>
-          <?php endforeach; ?>
-        </div>
-        <div class="muted-small" style="margin-top:8px;color:#64748b;font-size:0.85rem;">Hover bars for counts.</div>
-      </div>
-    </section>
-
-    <section style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-      <div class="card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-        <h3 style="margin:0 0 16px;color:#0f172a;font-size:1.1rem;font-weight:600;">Top Patients</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="border-bottom:1px solid #e5e7eb;">
-              <th style="padding:8px 0;text-align:left;font-weight:600;color:#0f172a;font-size:0.9rem;">Patient</th>
-              <th style="padding:8px 0;text-align:right;font-weight:600;color:#0f172a;font-size:0.9rem;">Count</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php if (empty($topPatients)): ?>
-              <tr>
-                <td colspan="2" class="muted" style="text-align:center;padding:16px;color:#64748b;">No data for this month.</td>
-              </tr>
-            <?php else: ?>
-              <?php foreach ($topPatients as $row): ?>
-                <tr style="border-bottom:1px solid #f1f5f9;">
-                  <td style="padding:8px 0;color:#0f172a;font-size:0.9rem;"><?php echo dr_escape($row['name'] ?? ''); ?></td>
-                  <td style="padding:8px 0;text-align:right;color:#64748b;font-size:0.9rem;font-weight:600;"><?php echo (int)($row['cnt'] ?? 0); ?></td>
-                </tr>
-              <?php endforeach; ?>
-            <?php endif; ?>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-        <h3 style="margin:0 0 16px;color:#0f172a;font-size:1.1rem;font-weight:600;">Top Medicines</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="border-bottom:1px solid #e5e7eb;">
-              <th style="padding:8px 0;text-align:left;font-weight:600;color:#0f172a;font-size:0.9rem;">Medicine</th>
-              <th style="padding:8px 0;text-align:right;font-weight:600;color:#0f172a;font-size:0.9rem;">Count</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php if (empty($topMeds)): ?>
-              <tr>
-                <td colspan="2" class="muted" style="text-align:center;padding:16px;color:#64748b;">No prescriptions for this month.</td>
-              </tr>
-            <?php else: ?>
-              <?php foreach ($topMeds as $row): ?>
-                <tr style="border-bottom:1px solid #f1f5f9;">
-                  <td style="padding:8px 0;color:#0f172a;font-size:0.9rem;"><?php echo dr_escape($row['name'] ?? ''); ?></td>
-                  <td style="padding:8px 0;text-align:right;color:#64748b;font-size:0.9rem;font-weight:600;"><?php echo (int)($row['cnt'] ?? 0); ?></td>
-                </tr>
-              <?php endforeach; ?>
-            <?php endif; ?>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <?php if (!empty($rxStatusCounts)): ?>
-      <section class="card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;box-shadow:0 2px 4px rgba(0,0,0,0.05);margin-bottom:16px;">
-        <h3 style="margin:0 0 16px;color:#0f172a;font-size:1.1rem;font-weight:600;">Prescription Status Breakdown</h3>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-          <?php foreach ($rxStatusCounts as $st => $cnt): ?>
-            <div style="border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;background:#f8fafc;">
-              <div style="font-weight:700;color:#0f172a;"><?php echo dr_escape($st); ?></div>
-              <div class="muted" style="color:#64748b;font-size:0.9rem;"><?php echo (int)$cnt; ?></div>
+      <div class="ad-grid">
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#dbeafe;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
             </div>
+            <div><?php echo dr_delta_badge($deltaPatients); ?></div>
+          </div>
+          <div class="ad-label">Unique Patients</div>
+          <div class="ad-value"><?php echo (int)$kpiPatients; ?></div>
+          <div class="ad-meta">This month</div>
+        </div>
+
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#f3e8ff;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <div><?php echo dr_delta_badge($deltaAppts); ?></div>
+          </div>
+          <div class="ad-label">Total Appointments</div>
+          <div class="ad-value"><?php echo (int)$kpiApptsTotal; ?></div>
+          <div class="ad-meta"><?php echo (int)$kpiApptsDone; ?> completed</div>
+        </div>
+
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#dcfce7;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </div>
+            <div><?php echo dr_delta_badge($deltaRx); ?></div>
+          </div>
+          <div class="ad-label">Prescriptions</div>
+          <div class="ad-value"><?php echo (int)$kpiRxTotal; ?></div>
+          <div class="ad-meta">Created</div>
+        </div>
+
+        <div class="ad-card">
+          <div class="ad-card-top">
+            <div class="ad-icon" style="background:#ffedd5;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12h4l2-5 4 10 2-5h4"></path>
+              </svg>
+            </div>
+            <div><?php echo dr_delta_badge($deltaLab); ?></div>
+          </div>
+          <div class="ad-label">Lab Requests</div>
+          <div class="ad-value"><?php echo (int)$kpiLabReqTotal; ?></div>
+          <div class="ad-meta">Sent</div>
+        </div>
+      </div>
+
+      <div class="ad-chart">
+        <div class="ad-chart-head">
+          <div>
+            <h3 class="ad-chart-title">Daily Appointments</h3>
+            <div class="ad-chart-sub">Total: <?php echo (int)$kpiApptsTotal; ?> appointments</div>
+          </div>
+          <div style="width:36px;height:36px;border-radius:12px;background:#f3e8ff;display:flex;align-items:center;justify-content:center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+        </div>
+        <div class="ad-bars" aria-label="Daily appointments bar chart">
+          <?php foreach ($dailyAppts as $day => $cnt): $h = max(6, (int)round(((int)$cnt / $maxDaily) * 100)); ?>
+            <div class="ad-bar" title="<?php echo dr_escape($day); ?>: <?php echo (int)$cnt; ?>" style="height:<?php echo (int)$h; ?>%;"></div>
           <?php endforeach; ?>
         </div>
-      </section>
-    <?php endif; ?>
+      </div>
+    </div>
   </div>
 </div>
 
