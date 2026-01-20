@@ -17,7 +17,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
     </div>
   </aside>
 
-  <div class="content" style="max-width:1200px;margin:0 auto;">
+  <div class="content" style="width:100%;max-width:none;margin:0;">
     <?php
     require_once __DIR__ . '/../../config/db.php';
     if (session_status() === PHP_SESSION_NONE) {
