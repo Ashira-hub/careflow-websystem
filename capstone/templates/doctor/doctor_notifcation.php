@@ -21,6 +21,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
       <h3 style="margin:0;">Notifications</h3>
       <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-outline" id="nfRefresh" title="Refresh">Refresh</button>
         <button class="btn btn-outline" id="nfClearAll" title="Clear all">Clear all</button>
       </div>
     </div>
@@ -74,6 +75,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
 
     var list = document.getElementById('nfList');
     var empty = document.getElementById('nfEmpty');
+    var btnRefresh = document.getElementById('nfRefresh');
     var btnClearAll = document.getElementById('nfClearAll');
 
     // Modal elements
@@ -89,17 +91,42 @@ include __DIR__ . '/../../includes/header.php'; ?>
 
     async function load() {
       try {
-        var url = '/capstone/notifications/pharmacy.php?role=doctor' + (doctorId ? ('&doctor_id=' + encodeURIComponent(doctorId)) : '');
+        var url = 'https://backend-careflow.vercel.app/api/notifications';
         var res = await fetch(url, {
-          cache: 'no-store'
+          method: 'GET',
+          cache: 'no-store',
+          headers: {
+            'X-User-Id': String(doctorId || ''),
+            'Content-Type': 'application/json'
+          }
         });
         if (!res.ok) throw new Error('Failed to load notifications');
         var data = await res.json();
         var prevScroll = list ? list.scrollTop : 0;
-        notifications = Array.isArray(data.items) ? data.items.map(function(n) {
-          n.read = !!n.read;
-          return n;
-        }) : [];
+
+        var rawItems = [];
+        if (Array.isArray(data)) {
+          rawItems = data;
+        } else if (data && Array.isArray(data.items)) {
+          rawItems = data.items;
+        } else if (data && Array.isArray(data.notifications)) {
+          rawItems = data.notifications;
+        }
+
+        notifications = rawItems.map(function(n, idx) {
+          var idVal = (n && (n.id != null ? n.id : n.notification_id)) != null ? (n.id != null ? n.id : n.notification_id) : (idx + 1);
+          var titleVal = (n && (n.title != null ? n.title : n.subject)) != null ? (n.title != null ? n.title : n.subject) : 'Notification';
+          var bodyVal = (n && (n.body != null ? n.body : (n.message != null ? n.message : n.description))) != null ? (n.body != null ? n.body : (n.message != null ? n.message : n.description)) : '';
+          var timeVal = (n && (n.time != null ? n.time : (n.created_at != null ? n.created_at : n.createdAt))) != null ? (n.time != null ? n.time : (n.created_at != null ? n.created_at : n.createdAt)) : '';
+          var readVal = (n && (n.read != null ? n.read : (n.is_read != null ? n.is_read : n.isRead))) != null ? (n.read != null ? n.read : (n.is_read != null ? n.is_read : n.isRead)) : false;
+          return {
+            id: String(idVal),
+            title: String(titleVal || ''),
+            body: String(bodyVal || ''),
+            time: String(timeVal || ''),
+            read: !!readVal
+          };
+        });
         render();
         if (list) list.scrollTop = prevScroll;
       } catch (err) {
@@ -121,7 +148,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
         var tb = String(a.time || '');
         var cmp = ta.localeCompare(tb);
         if (cmp !== 0) return cmp;
-        return (b.id || 0) - (a.id || 0);
+        return String(b.id || '').localeCompare(String(a.id || ''));
       });
       items.forEach(function(n) {
         var row = document.createElement('div');
@@ -147,7 +174,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
     // Modal functions
     function openModal(notificationId) {
       var notification = notifications.find(function(n) {
-        return n.id === notificationId;
+        return String(n.id) === String(notificationId);
       });
       if (!notification) return;
 
@@ -155,20 +182,6 @@ include __DIR__ . '/../../includes/header.php'; ?>
 
       // Mark as read when opened
       notification.read = true;
-      // Persist read status to backend so it stays read after reload
-      try {
-        var url = '/capstone/notifications/pharmacy.php?role=doctor&id=' + encodeURIComponent(notificationId) + (doctorId ? ('&doctor_id=' + encodeURIComponent(doctorId)) : '');
-        fetch(url, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            read: true
-          })
-        }).catch(function() {});
-      } catch (e) {
-        /* ignore */ }
 
       // Populate modal content
       modalContent.innerHTML = '<div style="display:grid;gap:20px;">' +
@@ -201,11 +214,6 @@ include __DIR__ . '/../../includes/header.php'; ?>
     // Clear all
     btnClearAll.addEventListener('click', async function() {
       try {
-        var url = '/capstone/notifications/pharmacy.php?role=doctor' + (doctorId ? ('&doctor_id=' + encodeURIComponent(doctorId)) : '');
-        var res = await fetch(url, {
-          method: 'DELETE'
-        });
-        if (!res.ok) throw new Error('Failed to clear');
         notifications = [];
         render();
       } catch (err) {
@@ -213,15 +221,21 @@ include __DIR__ . '/../../includes/header.php'; ?>
       }
     });
 
+    if (btnRefresh) {
+      btnRefresh.addEventListener('click', function() {
+        load();
+      });
+    }
+
     // Row actions
     list.addEventListener('click', function(e) {
       var btn = e.target.closest('button');
       var row = e.target.closest('.nf-item');
       if (!row) return;
 
-      var id = parseInt(row.getAttribute('data-id'), 10);
+      var id = String(row.getAttribute('data-id') || '');
       var idx = notifications.findIndex(function(n) {
-        return n.id === id;
+        return String(n.id) === id;
       });
       if (idx === -1) return;
 
@@ -249,9 +263,9 @@ include __DIR__ . '/../../includes/header.php'; ?>
     list.addEventListener('mouseleave', function(e) {
       var row = e.target.closest('.nf-item');
       if (row) {
-        var id = parseInt(row.getAttribute('data-id'), 10);
+        var id = String(row.getAttribute('data-id') || '');
         var notification = notifications.find(function(n) {
-          return n.id === id;
+          return String(n.id) === id;
         });
         row.style.backgroundColor = notification && notification.read ? '#fafafa' : '';
       }
@@ -266,7 +280,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
       deleteModalBtn.addEventListener('click', function() {
         if (currentNotificationId) {
           var idx = notifications.findIndex(function(n) {
-            return n.id === currentNotificationId;
+            return String(n.id) === String(currentNotificationId);
           });
           if (idx !== -1) {
             if (!confirm('Delete this notification?')) return;
@@ -286,8 +300,8 @@ include __DIR__ . '/../../includes/header.php'; ?>
     });
 
     load();
-    // Auto-refresh every 15 seconds
-    setInterval(load, 15000);
+    // Auto-refresh every 10 seconds
+    setInterval(load, 10000);
   })();
 </script>
 

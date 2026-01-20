@@ -371,16 +371,36 @@ try {
           var role = detectRole();
           if (!role || !nBadge) return;
 
-          var endpoint = role === 'supervisor' ?
-            '/capstone/notifications/supervisor.php' :
-            '/capstone/notifications/pharmacy.php?role=' + encodeURIComponent(role) + (role === 'doctor' && doctorId ? ('&doctor_id=' + encodeURIComponent(doctorId)) : '');
-          var res = await fetch(endpoint);
+          var res;
+          if (role === 'doctor') {
+            res = await fetch('https://backend-careflow.vercel.app/api/notifications', {
+              method: 'GET',
+              cache: 'no-store',
+              headers: {
+                'X-User-Id': String(doctorId || ''),
+                'Content-Type': 'application/json'
+              }
+            });
+          } else {
+            var endpoint = role === 'supervisor' ?
+              '/capstone/notifications/supervisor.php' :
+              '/capstone/notifications/pharmacy.php?role=' + encodeURIComponent(role) + (role === 'doctor' && doctorId ? ('&doctor_id=' + encodeURIComponent(doctorId)) : '');
+            res = await fetch(endpoint);
+          }
           if (!res.ok) return;
 
           var data = await res.json();
-          var notifications = Array.isArray(data.items) ? data.items : [];
+          var notifications = [];
+          if (Array.isArray(data)) {
+            notifications = data;
+          } else if (data && Array.isArray(data.items)) {
+            notifications = data.items;
+          } else if (data && Array.isArray(data.notifications)) {
+            notifications = data.notifications;
+          }
           var unreadCount = notifications.filter(function(n) {
-            return !n.read;
+            var isRead = (n && (n.read != null ? n.read : (n.is_read != null ? n.is_read : n.isRead))) != null ? (n.read != null ? n.read : (n.is_read != null ? n.is_read : n.isRead)) : false;
+            return !isRead;
           }).length;
 
           if (unreadCount > 0) {
