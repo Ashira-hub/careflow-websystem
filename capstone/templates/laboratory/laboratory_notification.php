@@ -48,6 +48,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:12px;padding:20px 28px;border-top:1px solid #e5e7eb;background:linear-gradient(135deg,#f8fafc,#f1f5f9);">
       <button type="button" class="btn btn-outline" id="closeNotificationModalBtn" style="padding:10px 20px;border-radius:10px;font-weight:600;">Close</button>
+      <button class="btn btn-primary" id="acceptNotificationBtn" style="padding:10px 20px;border-radius:10px;font-weight:600;background:linear-gradient(135deg,#0a5d39,#10b981);">Accept</button>
       <button class="btn btn-primary" id="deleteNotificationBtn" style="padding:10px 20px;border-radius:10px;font-weight:600;background:linear-gradient(135deg,#ef4444,#dc2626);">Delete</button>
     </div>
   </div>
@@ -65,12 +66,13 @@ include __DIR__ . '/../../includes/header.php'; ?>
     var modalContent = document.getElementById('notificationContent');
     var closeModalBtn = document.getElementById('closeNotificationModal');
     var closeModalBtn2 = document.getElementById('closeNotificationModalBtn');
+    var acceptModalBtn = document.getElementById('acceptNotificationBtn');
     var deleteModalBtn = document.getElementById('deleteNotificationBtn');
     var backdrop = modal ? modal.querySelector('[data-backdrop]') : null;
     var currentNotificationId = null;
 
     function escapeHtml(s) {
-      return (s || '').replace(/[&<>"]/g, function(c) {
+      return (s || '').replace(/[&<>\"]/g, function(c) {
         return {
           '&': '&amp;',
           '<': '&lt;',
@@ -78,6 +80,15 @@ include __DIR__ . '/../../includes/header.php'; ?>
           '"': '&quot;'
         } [c];
       });
+    }
+
+    function parseLabTestIdFromBody(body) {
+      if (!body) return null;
+      var m = String(body).match(/\bLabTestID\s*:\s*(\d+)\b/i);
+      if (m && m[1]) return parseInt(m[1], 10);
+      m = String(body).match(/\blab_test_id\s*:\s*(\d+)\b/i);
+      if (m && m[1]) return parseInt(m[1], 10);
+      return null;
     }
 
     async function load() {
@@ -130,6 +141,8 @@ include __DIR__ . '/../../includes/header.php'; ?>
       if (!notification) return;
       currentNotificationId = notificationId;
       notification.read = true; // mark read
+      var labTestId = parseLabTestIdFromBody(notification.body);
+      var canAccept = !!labTestId && String(notification.status || '').toLowerCase() !== 'accepted';
       modalContent.innerHTML = '<div style="display:grid;gap:20px;">' +
         '<div style="display:flex;align-items:center;gap:12px;padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">' +
         '<div style="width:40px;height:40px;border-radius:50%;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:20px;">🔔</div>' +
@@ -142,8 +155,15 @@ include __DIR__ . '/../../includes/header.php'; ?>
         '<div style="padding:20px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;">' +
         '<h4 style="margin:0 0 12px;color:#0f172a;font-size:1rem;font-weight:600;">Message Details</h4>' +
         '<div style="color:#374151;line-height:1.6;font-size:0.95rem;">' + escapeHtml(notification.body) + '</div>' +
+        (labTestId ? ('<div style="margin-top:12px;color:#64748b;font-size:0.9rem;">Lab Test ID: <b>' + escapeHtml(String(labTestId)) + '</b></div>') : '') +
+        (notification.status ? ('<div style="margin-top:6px;color:#64748b;font-size:0.9rem;">Status: <b>' + escapeHtml(String(notification.status)) + '</b></div>') : '') +
         '</div>' +
         '</div>';
+
+      if (acceptModalBtn) {
+        acceptModalBtn.style.display = canAccept ? '' : 'none';
+        acceptModalBtn.disabled = !canAccept;
+      }
       modal.style.display = 'block';
       document.body.style.overflow = 'hidden';
       render();
@@ -210,6 +230,51 @@ include __DIR__ . '/../../includes/header.php'; ?>
     if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
     if (closeModalBtn2) closeModalBtn2.addEventListener('click', closeModal);
     if (backdrop) backdrop.addEventListener('click', closeModal);
+    if (acceptModalBtn) {
+      acceptModalBtn.addEventListener('click', async function() {
+        if (!currentNotificationId) return;
+        var idx = notifications.findIndex(function(n) {
+          return n.id === currentNotificationId;
+        });
+        if (idx === -1) return;
+        var n = notifications[idx];
+        var labTestId = parseLabTestIdFromBody(n.body);
+        if (!labTestId) {
+          alert('This notification is not linked to a lab test request.');
+          return;
+        }
+        if (!confirm('Accept this lab test request?')) return;
+        try {
+          acceptModalBtn.disabled = true;
+          var res = await fetch('/capstone/notifications/pharmacy.php?role=laboratory&id=' + encodeURIComponent(String(currentNotificationId)), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              status: 'accepted',
+              read: true
+            })
+          });
+          if (!res.ok) {
+            var t = await res.text().catch(function() {
+              return '';
+            });
+            throw new Error(t || 'Failed to accept');
+          }
+          var updated = await res.json().catch(function() {
+            return null;
+          });
+          notifications[idx].status = (updated && updated.status) ? updated.status : 'accepted';
+          notifications[idx].read = true;
+          render();
+          openModal(currentNotificationId);
+        } catch (err) {
+          alert('Error: ' + err.message);
+          acceptModalBtn.disabled = false;
+        }
+      });
+    }
     if (deleteModalBtn) {
       deleteModalBtn.addEventListener('click', function() {
         if (currentNotificationId) {

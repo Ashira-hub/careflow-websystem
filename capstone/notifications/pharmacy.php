@@ -149,6 +149,24 @@ function parse_prescription_id_from_body($body)
   return null;
 }
 
+function parse_lab_test_id_from_body($body)
+{
+  if (!$body) return null;
+  $parts = preg_split('/\|/', $body);
+  foreach ($parts as $part) {
+    $part = trim((string)$part);
+    if ($part === '') continue;
+    $lower = strtolower($part);
+    if (strpos($lower, 'labtestid:') === 0 || strpos($lower, 'lab_test_id:') === 0) {
+      $val = trim(substr($part, strpos($part, ':') + 1));
+      if ($val !== '' && ctype_digit($val)) {
+        return (int)$val;
+      }
+    }
+  }
+  return null;
+}
+
 function upsert_nurse_prescription($dir, $notification)
 {
   $file = nurse_prescription_store($dir);
@@ -339,7 +357,68 @@ if ($method === 'PUT') {
     if (array_key_exists('read', $input)) {
       $items[$idx]['read'] = (bool)$input['read'];
     }
+    if (array_key_exists('status', $input)) {
+      $allowed = ['new', 'accepted', 'acknowledged', 'done', 'rejected', 'dispensed'];
+      $val = strtolower((string)$input['status']);
+      if (in_array($val, $allowed, true)) {
+        $items[$idx]['status'] = $val;
+      }
+    }
     save_store($rf, $items);
+
+    $statusNow = $items[$idx]['status'] ?? '';
+    $resolvedDoctorId = $doctorId ?: (int)($items[$idx]['doctor_id'] ?? 0);
+
+    if ($role === 'laboratory' && $statusNow === 'accepted') {
+      $title = 'Lab test request accepted by Laboratory';
+      $body  = $items[$idx]['body'] ?? ($items[$idx]['title'] ?? '');
+      if ($resolvedDoctorId > 0) {
+        append_role_notification('doctor', $storeDir, $title, $body, $resolvedDoctorId);
+      }
+
+      try {
+        $pdo = get_pdo();
+        $labTestId = parse_lab_test_id_from_body($body);
+        if ($labTestId !== null && $labTestId > 0) {
+          $stmt = $pdo->prepare('UPDATE lab_tests SET status = :status, updated_at = now() WHERE id = :id');
+          $stmt->execute([
+            ':status' => 'In Progress',
+            ':id' => $labTestId,
+          ]);
+        }
+      } catch (Throwable $e) {
+      }
+    } elseif ($role === 'pharmacy') {
+      if ($statusNow === 'accepted') {
+        $title = 'Prescription accepted by Pharmacy';
+        $body  = $items[$idx]['body'] ?? ($items[$idx]['title'] ?? '');
+        append_role_notification('doctor', $storeDir, $title, $body, $resolvedDoctorId);
+        append_role_notification('nurse', $storeDir, $title, $body);
+        upsert_nurse_prescription($storeDir, $items[$idx]);
+      } elseif ($statusNow === 'dispensed') {
+        $title = 'Prescription dispensed by Pharmacy';
+        $body  = $items[$idx]['body'] ?? ($items[$idx]['title'] ?? '');
+        append_role_notification('doctor', $storeDir, $title, $body, $resolvedDoctorId);
+        append_role_notification('nurse', $storeDir, $title, $body);
+        upsert_nurse_prescription($storeDir, $items[$idx]);
+      }
+    } elseif ($role === 'nurse') {
+      if ($statusNow === 'acknowledged') {
+        $title = 'Prescription acknowledged by Nurse';
+        $body  = $items[$idx]['body'] ?? ($items[$idx]['title'] ?? '');
+        append_role_notification('doctor', $storeDir, $title, $body, $resolvedDoctorId);
+        append_role_notification('pharmacy', $storeDir, $title, $body);
+        upsert_nurse_prescription($storeDir, $items[$idx]);
+      } elseif ($statusNow === 'done') {
+        $title = 'Prescription administered by Nurse';
+        $body  = $items[$idx]['body'] ?? ($items[$idx]['title'] ?? '');
+        append_role_notification('doctor', $storeDir, $title, $body, $resolvedDoctorId);
+        append_role_notification('pharmacy', $storeDir, $title, $body);
+        upsert_nurse_prescription($storeDir, $items[$idx]);
+      } elseif ($statusNow === 'rejected') {
+        remove_nurse_prescription($storeDir, $items[$idx]['id']);
+      }
+    }
     echo json_encode($items[$idx]);
     exit;
   }
