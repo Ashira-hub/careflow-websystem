@@ -312,80 +312,136 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
             e.preventDefault();
             var doctor = (document.getElementById('doctor') || {}).value || '';
             var patient = (document.getElementById('patient') || {}).value || '';
-            var medicine = (document.getElementById('medicine') || {}).value || '';
-            var qty = (document.getElementById('quantity_prescribed') || {}).value || '';
-            var dose = (document.getElementById('dosage_strength') || {}).value || '';
             var desc = (document.getElementById('description') || {}).value || '';
 
             // Validate required fields
-            if (!doctor || !patient || !medicine || !qty || !dose) {
-              alert('Please fill in all required fields: Doctor, Patient, Medicine, Quantity, and Dosage.');
+            var rowsWrap = document.getElementById('medicineRows');
+            var rowEls = rowsWrap ? Array.prototype.slice.call(rowsWrap.querySelectorAll('.medicine-row')) : [];
+            var items = rowEls.map(function(row) {
+              var medEl = row.querySelector('.medicineInput');
+              var qtyEl = row.querySelector('.medicineQty');
+              var doseEl = row.querySelector('.medicineDose');
+              return {
+                medicine: (medEl && medEl.value) ? String(medEl.value) : '',
+                qty: (qtyEl && qtyEl.value) ? String(qtyEl.value) : '',
+                dose: (doseEl && doseEl.value) ? String(doseEl.value) : ''
+              };
+            }).filter(function(it) {
+              return (String(it.medicine || '').trim() !== '' || String(it.qty || '').trim() !== '' || String(it.dose || '').trim() !== '');
+            });
+
+            if (!doctor || !patient || items.length === 0) {
+              alert('Please fill in all required fields: Doctor, Patient, and at least one Medicine item.');
               return;
             }
-
-            var title = 'New prescription from ' + doctor;
-
-            try {
-              // Save prescription to database
-              var dbRes = await fetch('/capstone/prescriptions/create.php', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  doctor_name: doctor,
-                  patient_name: patient,
-                  medicine: medicine,
-                  quantity: qty,
-                  dosage_strength: dose,
-                  description: desc
-                })
-              });
-
-              if (!dbRes.ok) {
-                var dbError = await dbRes.text().catch(function() {
-                  return '';
-                });
-                throw new Error(dbError || 'Failed to save prescription');
+            for (var i = 0; i < items.length; i++) {
+              if (!String(items[i].medicine || '').trim() || !String(items[i].qty || '').trim() || !String(items[i].dose || '').trim()) {
+                alert('Please complete all medicine fields (Medicine, Quantity, Dosage) for each added item.');
+                return;
               }
-              var dbJson = await dbRes.json().catch(function() {
-                return null;
-              });
-              var prescriptionId = dbJson && dbJson.data && dbJson.data.id ? dbJson.data.id : null;
+            }
 
+            function resetMedicineRows() {
+              var wrap = document.getElementById('medicineRows');
+              if (!wrap) return;
+              var all = Array.prototype.slice.call(wrap.querySelectorAll('.medicine-row'));
+              for (var j = 1; j < all.length; j++) {
+                if (all[j] && all[j].parentNode) all[j].parentNode.removeChild(all[j]);
+              }
+              var first = wrap.querySelector('.medicine-row');
+              if (first) {
+                var medEl = first.querySelector('.medicineInput');
+                var qtyEl = first.querySelector('.medicineQty');
+                var doseEl = first.querySelector('.medicineDose');
+                if (medEl) medEl.value = '';
+                if (qtyEl) qtyEl.value = '';
+                if (doseEl) doseEl.value = '';
+              }
+
+              var removeBtns = Array.prototype.slice.call(wrap.querySelectorAll('.btnRemoveMedicine'));
+              removeBtns.forEach(function(btn) {
+                btn.style.display = (removeBtns.length > 1) ? '' : 'none';
+              });
+            }
+
+            function buildBody(patientName, medicine, dose, qty, prescriptionId) {
               var parts = [];
-              if (patient) parts.push('Patient: ' + patient);
+              if (patientName) parts.push('Patient: ' + patientName);
               if (medicine) parts.push('Medicine: ' + medicine + (dose ? (' ' + dose) : ''));
               if (qty) parts.push('Qty: ' + qty);
               if (desc) parts.push(desc);
               if (prescriptionId !== null && prescriptionId !== undefined) {
                 parts.push('PrescriptionID: ' + prescriptionId);
               }
-              var body = parts.join(' | ');
+              return parts.join(' | ');
+            }
 
-              // Notify pharmacy, include prescription_id and doctor_id so backend can update DB status and doctor notifications
-              var notifRes = await fetch('/capstone/notifications/pharmacy.php', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  title: title,
-                  body: body,
-                  prescription_id: prescriptionId,
-                  doctor_id: doctorId
-                })
-              });
+            if (!doctor || !patient) {
+              alert('Please fill in all required fields: Doctor and Patient.');
+              return;
+            }
 
-              if (!notifRes.ok) {
-                var t = await notifRes.text().catch(function() {
-                  return '';
+            var title = 'New prescription from ' + doctor;
+
+            try {
+              for (var k = 0; k < items.length; k++) {
+                var medicine = String(items[k].medicine || '').trim();
+                var qty = String(items[k].qty || '').trim();
+                var dose = String(items[k].dose || '').trim();
+
+                // Save prescription to database
+                var dbRes = await fetch('/capstone/prescriptions/create.php', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    doctor_name: doctor,
+                    patient_name: patient,
+                    medicine: medicine,
+                    quantity: qty,
+                    dosage_strength: dose,
+                    description: desc
+                  })
                 });
-                throw new Error(t || 'Failed to notify pharmacy');
+
+                if (!dbRes.ok) {
+                  var dbError = await dbRes.text().catch(function() {
+                    return '';
+                  });
+                  throw new Error(dbError || 'Failed to save prescription');
+                }
+                var dbJson = await dbRes.json().catch(function() {
+                  return null;
+                });
+                var prescriptionId = dbJson && dbJson.data && dbJson.data.id ? dbJson.data.id : null;
+                var body = buildBody(patient, medicine, dose, qty, prescriptionId);
+
+                // Notify pharmacy, include prescription_id and doctor_id so backend can update DB status and doctor notifications
+                var notifRes = await fetch('/capstone/notifications/pharmacy.php', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    title: title,
+                    body: body,
+                    prescription_id: prescriptionId,
+                    doctor_id: doctorId
+                  })
+                });
+
+                if (!notifRes.ok) {
+                  var t = await notifRes.text().catch(function() {
+                    return '';
+                  });
+                  throw new Error(t || 'Failed to notify pharmacy');
+                }
               }
 
               alert('Prescription submitted successfully. Pharmacy has been notified.');
               rxForm.reset();
+              resetMedicineRows();
               if (document.getElementById('patient')) {
                 document.getElementById('patient').focus();
               }
@@ -543,18 +599,72 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
             </div>
           </div>
           <div class="form-field">
-            <label for="medicine" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Medicine</label>
-            <input type="text" id="medicine" name="medicine" placeholder="Enter medicine" require style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
-          </div>
-          <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-            <div class="form-field">
-              <label for="quantity_prescribed" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Quantity Prescribed</label>
-              <input type="text" id="quantity_prescribed" name="quantity_prescribed" placeholder="Enter quantity" require style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+            <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Medicines</label>
+            <div id="medicineRows" style="display:grid;gap:12px;">
+              <div class="medicine-row" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:end;">
+                <div class="form-field" style="margin:0;">
+                  <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.85rem;">Medicine</label>
+                  <input type="text" class="medicineInput" placeholder="Enter medicine" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+                </div>
+                <div class="form-field" style="margin:0;">
+                  <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.85rem;">Quantity</label>
+                  <input type="text" class="medicineQty" placeholder="Qty" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+                </div>
+                <div class="form-field" style="margin:0;">
+                  <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.85rem;">Dosage</label>
+                  <input type="text" class="medicineDose" placeholder="Dosage" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;">
+                  <button type="button" class="btnRemoveMedicine" style="display:none;padding:10px 12px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;font-weight:700;cursor:pointer;color:#ef4444;">Remove</button>
+                </div>
+              </div>
             </div>
-            <div class="form-field">
-              <label for="dosage_strength" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Dosage Strength</label>
-              <input type="text" id="dosage_strength" name="dosage_strength" placeholder="Enter dosage strength" require style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+            <div style="margin-top:12px;display:flex;justify-content:flex-start;">
+              <button type="button" id="btnAddMedicine" style="padding:12px 14px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;font-weight:700;cursor:pointer;">Add Medicine</button>
             </div>
+            <script>
+              (function() {
+                var wrap = document.getElementById('medicineRows');
+                var addBtn = document.getElementById('btnAddMedicine');
+                if (!wrap || !addBtn) return;
+
+                function updateRemoveButtons() {
+                  var btns = Array.prototype.slice.call(wrap.querySelectorAll('.btnRemoveMedicine'));
+                  btns.forEach(function(btn) {
+                    btn.style.display = (btns.length > 1) ? '' : 'none';
+                  });
+                }
+
+                function wireRemove(row) {
+                  var rm = row ? row.querySelector('.btnRemoveMedicine') : null;
+                  if (!rm) return;
+                  rm.addEventListener('click', function() {
+                    if (row && row.parentNode) row.parentNode.removeChild(row);
+                    updateRemoveButtons();
+                  });
+                }
+
+                var first = wrap.querySelector('.medicine-row');
+                if (first) wireRemove(first);
+                updateRemoveButtons();
+
+                addBtn.addEventListener('click', function() {
+                  var base = wrap.querySelector('.medicine-row');
+                  if (!base) return;
+                  var clone = base.cloneNode(true);
+                  var medEl = clone.querySelector('.medicineInput');
+                  var qtyEl = clone.querySelector('.medicineQty');
+                  var doseEl = clone.querySelector('.medicineDose');
+                  if (medEl) medEl.value = '';
+                  if (qtyEl) qtyEl.value = '';
+                  if (doseEl) doseEl.value = '';
+                  wrap.appendChild(clone);
+                  wireRemove(clone);
+                  updateRemoveButtons();
+                  if (medEl) medEl.focus();
+                });
+              })();
+            </script>
           </div>
           <div class="form-field">
             <label for="description" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Description</label>
