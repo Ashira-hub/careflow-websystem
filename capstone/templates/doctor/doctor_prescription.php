@@ -465,6 +465,33 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
                   throw new Error(nt || 'Failed to notify laboratory');
                 }
 
+                // Best-effort: notify patient (for mobile app unread badge)
+                try {
+                  var pTitle = 'Laboratory test requested';
+                  var pMsgParts = [];
+                  if (testName) pMsgParts.push('Test: ' + testName);
+                  if (category) pMsgParts.push('Category: ' + category);
+                  if (testDate) pMsgParts.push('Date: ' + testDate);
+                  if (doctor) pMsgParts.push('Doctor: ' + doctor);
+                  if (labTestId !== null && labTestId !== undefined) {
+                    pMsgParts.push('LabTestID: ' + labTestId);
+                  }
+                  var pMsg = pMsgParts.join(' | ');
+                  await fetch('/capstone/api/notifications.php', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      title: pTitle,
+                      message: pMsg,
+                      patient_name: patient
+                    })
+                  });
+                } catch (e) {
+                  // ignore
+                }
+
                 alert('Laboratory test request submitted successfully. Laboratory has been notified.');
                 labForm.reset();
                 if (document.getElementById('lab_patient')) {
