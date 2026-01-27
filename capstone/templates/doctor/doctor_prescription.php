@@ -189,39 +189,42 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
           });
           setActiveTab('rx');
 
-          var testInput = document.getElementById('lab_test_name');
-          var testList = document.getElementById('labTestNameList');
-          var testWrap = document.getElementById('labTestNameWrap');
-          var testChevron = document.getElementById('labTestNameChevron');
-          if (testInput && testList) {
+          var testOptions = [
+            'Complete Blood Count (CBC)',
+            'Urinalysis',
+            'Fasting Blood Sugar (FBS)',
+            'Random Blood Sugar (RBS)',
+            'Lipid Profile',
+            'Liver Function Test (LFT)',
+            'Kidney Function Test (KFT)',
+            'Creatinine',
+            'Blood Urea Nitrogen (BUN)',
+            'Electrolytes (Na/K/Cl)',
+            'Hemoglobin A1c (HbA1c)',
+            'Pregnancy Test',
+            'COVID-19 Antigen',
+            'Dengue NS1/IgM/IgG'
+          ];
+
+          function escapeHtml(s) {
+            return String(s)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+          }
+
+          function attachLabTestAutocomplete(row) {
+            if (!row) return;
+            var testInput = row.querySelector('.labTestNameInput');
+            var testList = row.querySelector('.labTestNameList');
+            var testWrap = row.querySelector('.labTestNameWrap');
+            var testChevron = row.querySelector('.labTestNameChevron');
+            if (!testInput || !testList) return;
+
             function isTestListOpen() {
               return testList.style.display === 'block';
-            }
-
-            var testOptions = [
-              'Complete Blood Count (CBC)',
-              'Urinalysis',
-              'Fasting Blood Sugar (FBS)',
-              'Random Blood Sugar (RBS)',
-              'Lipid Profile',
-              'Liver Function Test (LFT)',
-              'Kidney Function Test (KFT)',
-              'Creatinine',
-              'Blood Urea Nitrogen (BUN)',
-              'Electrolytes (Na/K/Cl)',
-              'Hemoglobin A1c (HbA1c)',
-              'Pregnancy Test',
-              'COVID-19 Antigen',
-              'Dengue NS1/IgM/IgG'
-            ];
-
-            function escapeHtml(s) {
-              return String(s)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
             }
 
             function openTestList() {
@@ -306,6 +309,50 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
               }
             });
           }
+
+          (function initLabTestRows() {
+            var rowsWrap = document.getElementById('labTestRows');
+            var addBtn = document.getElementById('btnAddLabTest');
+            if (!rowsWrap || !addBtn) return;
+
+            function updateRemoveButtons() {
+              var btns = Array.prototype.slice.call(rowsWrap.querySelectorAll('.btnRemoveLabTest'));
+              btns.forEach(function(btn) {
+                btn.style.display = (btns.length > 1) ? '' : 'none';
+              });
+            }
+
+            function wireRemove(row) {
+              var rm = row ? row.querySelector('.btnRemoveLabTest') : null;
+              if (!rm) return;
+              rm.addEventListener('click', function() {
+                if (row && row.parentNode) row.parentNode.removeChild(row);
+                updateRemoveButtons();
+              });
+            }
+
+            var first = rowsWrap.querySelector('.lab-test-row');
+            if (first) {
+              attachLabTestAutocomplete(first);
+              wireRemove(first);
+            }
+            updateRemoveButtons();
+
+            addBtn.addEventListener('click', function() {
+              var base = rowsWrap.querySelector('.lab-test-row');
+              if (!base) return;
+              var clone = base.cloneNode(true);
+              var input = clone.querySelector('.labTestNameInput');
+              var list = clone.querySelector('.labTestNameList');
+              if (input) input.value = '';
+              if (list) list.innerHTML = '';
+              rowsWrap.appendChild(clone);
+              attachLabTestAutocomplete(clone);
+              wireRemove(clone);
+              updateRemoveButtons();
+              if (input) input.focus();
+            });
+          })();
 
           if (!rxForm) return;
           rxForm.addEventListener('submit', async function(e) {
@@ -455,98 +502,128 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
               e.preventDefault();
               var doctor = (document.getElementById('lab_doctor') || {}).value || '';
               var patient = (document.getElementById('lab_patient') || {}).value || '';
-              var testName = (document.getElementById('lab_test_name') || {}).value || '';
               var category = (document.getElementById('lab_category') || {}).value || '';
               var testDate = (document.getElementById('lab_test_date') || {}).value || '';
               var notes = (document.getElementById('lab_notes') || {}).value || '';
 
-              if (!doctor || !patient || !testName || !category || !testDate) {
-                alert('Please fill in all required fields: Doctor, Patient, Test Name, Category, and Date.');
+              var rowsWrap = document.getElementById('labTestRows');
+              var inputs = rowsWrap ? Array.prototype.slice.call(rowsWrap.querySelectorAll('.labTestNameInput')) : [];
+              var tests = inputs.map(function(inp) {
+                return inp && inp.value ? String(inp.value).trim() : '';
+              }).filter(function(v) {
+                return v !== '';
+              });
+
+              if (!doctor || !patient || tests.length === 0 || !category || !testDate) {
+                alert('Please fill in all required fields: Doctor, Patient, at least one Test Name, Category, and Date.');
                 return;
               }
 
               try {
-                var createRes = await fetch(window.location.pathname + '?action=create_lab_test', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    doctor_name: doctor,
-                    patient_name: patient,
-                    test_name: testName,
-                    category: category,
-                    test_date: testDate,
-                    notes: notes
-                  })
-                });
-                if (!createRes.ok) {
-                  var t = await createRes.text().catch(function() {
-                    return '';
-                  });
-                  throw new Error(t || 'Failed to create lab test');
-                }
-                var createJson = await createRes.json().catch(function() {
-                  return null;
-                });
-                var labTestId = createJson && createJson.data && createJson.data.id ? createJson.data.id : null;
+                for (var idx = 0; idx < tests.length; idx++) {
+                  var testName = tests[idx];
 
-                var title = 'New lab test request from ' + doctor;
-                var parts = [];
-                if (patient) parts.push('Patient: ' + patient);
-                if (testName) parts.push('Test: ' + testName);
-                if (category) parts.push('Category: ' + category);
-                if (testDate) parts.push('Date: ' + testDate);
-                if (notes) parts.push(notes);
-                if (labTestId !== null && labTestId !== undefined) {
-                  parts.push('LabTestID: ' + labTestId);
-                }
-                var body = parts.join(' | ');
-
-                var notifRes = await fetch('/capstone/notifications/pharmacy.php?role=laboratory', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    title: title,
-                    body: body,
-                    doctor_id: doctorId
-                  })
-                });
-                if (!notifRes.ok) {
-                  var nt = await notifRes.text().catch(function() {
-                    return '';
-                  });
-                  throw new Error(nt || 'Failed to notify laboratory');
-                }
-
-                // Best-effort: notify patient (for mobile app unread badge)
-                try {
-                  var pTitle = 'Laboratory test requested';
-                  var pMsgParts = [];
-                  if (testName) pMsgParts.push('Test: ' + testName);
-                  if (category) pMsgParts.push('Category: ' + category);
-                  if (testDate) pMsgParts.push('Date: ' + testDate);
-                  if (doctor) pMsgParts.push('Doctor: ' + doctor);
-                  if (labTestId !== null && labTestId !== undefined) {
-                    pMsgParts.push('LabTestID: ' + labTestId);
-                  }
-                  var pMsg = pMsgParts.join(' | ');
-                  await fetch('/capstone/api/notifications.php', {
+                  var createRes = await fetch(window.location.pathname + '?action=create_lab_test', {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                      title: pTitle,
-                      message: pMsg,
-                      patient_name: patient
+                      doctor_name: doctor,
+                      patient_name: patient,
+                      test_name: testName,
+                      category: category,
+                      test_date: testDate,
+                      notes: notes
                     })
                   });
-                } catch (e) {
-                  // ignore
+                  if (!createRes.ok) {
+                    var t = await createRes.text().catch(function() {
+                      return '';
+                    });
+                    throw new Error(t || 'Failed to create lab test');
+                  }
+                  var createJson = await createRes.json().catch(function() {
+                    return null;
+                  });
+                  var labTestId = createJson && createJson.data && createJson.data.id ? createJson.data.id : null;
+
+                  var title = 'New lab test request from ' + doctor;
+                  var parts = [];
+                  if (patient) parts.push('Patient: ' + patient);
+                  if (testName) parts.push('Test: ' + testName);
+                  if (category) parts.push('Category: ' + category);
+                  if (testDate) parts.push('Date: ' + testDate);
+                  if (notes) parts.push(notes);
+                  if (labTestId !== null && labTestId !== undefined) {
+                    parts.push('LabTestID: ' + labTestId);
+                  }
+                  var body = parts.join(' | ');
+
+                  var notifRes = await fetch('/capstone/notifications/pharmacy.php?role=laboratory', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      title: title,
+                      body: body,
+                      doctor_id: doctorId
+                    })
+                  });
+                  if (!notifRes.ok) {
+                    var nt = await notifRes.text().catch(function() {
+                      return '';
+                    });
+                    throw new Error(nt || 'Failed to notify laboratory');
+                  }
+
+                  // Best-effort: notify patient (for mobile app unread badge)
+                  try {
+                    var pTitle = 'Laboratory test requested';
+                    var pMsgParts = [];
+                    if (testName) pMsgParts.push('Test: ' + testName);
+                    if (category) pMsgParts.push('Category: ' + category);
+                    if (testDate) pMsgParts.push('Date: ' + testDate);
+                    if (doctor) pMsgParts.push('Doctor: ' + doctor);
+                    if (labTestId !== null && labTestId !== undefined) {
+                      pMsgParts.push('LabTestID: ' + labTestId);
+                    }
+                    var pMsg = pMsgParts.join(' | ');
+                    await fetch('/capstone/api/notifications.php', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({
+                        title: pTitle,
+                        message: pMsg,
+                        patient_name: patient
+                      })
+                    });
+                  } catch (e) {
+                    // ignore
+                  }
                 }
+
+                try {
+                  var wrap = document.getElementById('labTestRows');
+                  if (wrap) {
+                    var all = Array.prototype.slice.call(wrap.querySelectorAll('.lab-test-row'));
+                    for (var r = 1; r < all.length; r++) {
+                      if (all[r] && all[r].parentNode) all[r].parentNode.removeChild(all[r]);
+                    }
+                    var first = wrap.querySelector('.lab-test-row');
+                    if (first) {
+                      var inp = first.querySelector('.labTestNameInput');
+                      if (inp) inp.value = '';
+                      var btns = Array.prototype.slice.call(wrap.querySelectorAll('.btnRemoveLabTest'));
+                      btns.forEach(function(btn) {
+                        btn.style.display = (btns.length > 1) ? '' : 'none';
+                      });
+                    }
+                  }
+                } catch (e) {}
 
                 alert('Laboratory test request submitted successfully. Laboratory has been notified.');
                 labForm.reset();
@@ -709,14 +786,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
 
           <div class="form-field">
             <label for="lab_test_name" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Test Name</label>
-            <div id="labTestNameWrap" style="position:relative;">
-              <input type="text" id="lab_test_name" name="lab_test_name" placeholder="Select or type test name" required autocomplete="off" style="width:100%;padding:12px 40px 12px 16px;border:2px solid #e2e8f0;border-radius:12px;background:#f8fafc;transition:all 0.2s ease;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
-              <div id="labTestNameChevron" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:auto;cursor:default;color:#64748b;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
+            <div id="labTestRows" style="display:grid;gap:12px;">
+              <div class="lab-test-row" style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+                <div class="labTestNameWrap" style="position:relative;">
+                  <input type="text" class="labTestNameInput" placeholder="Select or type test name" autocomplete="off" style="width:100%;padding:12px 40px 12px 16px;border:2px solid #e2e8f0;border-radius:12px;background:#f8fafc;transition:all 0.2s ease;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+                  <div class="labTestNameChevron" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:auto;cursor:default;color:#64748b;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </div>
+                  <div class="labTestNameList" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:2px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.08);max-height:220px;overflow:auto;z-index:50;"></div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;">
+                  <button type="button" class="btnRemoveLabTest" style="display:none;padding:10px 12px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;font-weight:700;cursor:pointer;color:#ef4444;">Remove</button>
+                </div>
               </div>
-              <div id="labTestNameList" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:2px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.08);max-height:220px;overflow:auto;z-index:50;"></div>
+            </div>
+            <div style="margin-top:12px;display:flex;justify-content:flex-start;">
+              <button type="button" id="btnAddLabTest" style="padding:12px 14px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;font-weight:700;cursor:pointer;">Add Test</button>
             </div>
           </div>
 
