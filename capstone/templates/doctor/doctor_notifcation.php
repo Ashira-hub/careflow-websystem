@@ -132,6 +132,11 @@ include __DIR__ . '/../../includes/header.php'; ?>
       if (mPatient && mPatient[1]) out.patient = mPatient[1].trim();
 
       if (!out.patient) {
+        var mFrom = s.match(/\bappointment\s+request\b.*?\bfrom\s+(.+?)\s+for\b/i);
+        if (mFrom && mFrom[1]) out.patient = mFrom[1].trim();
+      }
+
+      if (!out.patient) {
         var mRem = s.match(/reminder\s*:\s*(.*?)\s+appointment\s+on\s+/i);
         if (mRem && mRem[1]) out.patient = mRem[1].trim();
       }
@@ -139,14 +144,33 @@ include __DIR__ . '/../../includes/header.php'; ?>
       var mDate = s.match(/(\d{4}-\d{2}-\d{2})/);
       if (mDate && mDate[1]) out.date = mDate[1];
 
-      var mTime = s.match(/\b(\d{1,2}:\d{2}(?::\d{2})?)\b/);
-      if (mTime && mTime[1]) {
-        out.time = mTime[1];
-        if (out.time.length === 5) out.time = out.time + ':00';
+      var mTime12 = s.match(/\b(\d{1,2}:\d{2})(?::\d{2})?\s*(AM|PM)\b/i);
+      if (mTime12 && mTime12[1]) {
+        var hm = mTime12[1];
+        var ampm = String(mTime12[2] || '').toUpperCase();
+        var parts = hm.split(':');
+        var hh = parseInt(parts[0], 10);
+        var mm = parts[1];
+        if (!isNaN(hh)) {
+          if (ampm === 'PM' && hh < 12) hh += 12;
+          if (ampm === 'AM' && hh === 12) hh = 0;
+          out.time = String(hh).padStart(2, '0') + ':' + mm + ':00';
+        }
+      } else {
+        var mTime = s.match(/\b(\d{1,2}:\d{2}(?::\d{2})?)\b/);
+        if (mTime && mTime[1]) {
+          out.time = mTime[1];
+          if (out.time.length === 5) out.time = out.time + ':00';
+        }
       }
 
       var mNotes = s.match(/notes\s*:\s*([^\n]+)/i);
       if (mNotes && mNotes[1]) out.notes = mNotes[1].trim();
+
+      if (!out.notes) {
+        var mReason = s.match(/reason\s*:\s*([^\n]+)/i);
+        if (mReason && mReason[1]) out.notes = mReason[1].trim();
+      }
 
       return out;
     }
