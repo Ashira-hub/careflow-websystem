@@ -189,12 +189,25 @@ include __DIR__ . '/../../includes/header.php'; ?>
           var bodyVal = (n && (n.body != null ? n.body : (n.message != null ? n.message : n.description))) != null ? (n.body != null ? n.body : (n.message != null ? n.message : n.description)) : '';
           var timeVal = (n && (n.time != null ? n.time : (n.created_at != null ? n.created_at : n.createdAt))) != null ? (n.time != null ? n.time : (n.created_at != null ? n.created_at : n.createdAt)) : '';
           var readVal = (n && (n.read != null ? n.read : (n.is_read != null ? n.is_read : n.isRead))) != null ? (n.read != null ? n.read : (n.is_read != null ? n.is_read : n.isRead)) : false;
+          var patientNameVal = (n && (
+            n.patient_name != null ? n.patient_name :
+            (n.patient != null ? n.patient :
+              (n.full_name != null ? n.full_name :
+                (n.sender_name != null ? n.sender_name :
+                  (n.sender != null ? n.sender :
+                    (n.patientName != null ? n.patientName : null)
+                  )
+                )
+              )
+            )
+          ));
           return {
             id: String(idVal),
             title: String(titleVal || ''),
             body: String(bodyVal || ''),
             time: String(timeVal || ''),
-            read: !!readVal
+            read: !!readVal,
+            patientName: patientNameVal != null ? String(patientNameVal) : ''
           };
         });
         render();
@@ -256,10 +269,11 @@ include __DIR__ . '/../../includes/header.php'; ?>
       var apptControls = '';
       if (isAppointmentRequest(notification)) {
         var ap = parseAppointmentDetails(notification.body);
+        var prefillPatient = (notification.patientName || ap.patient || '').trim();
         apptControls = '<div style="padding:20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">' +
           '<h4 style="margin:0 0 12px;color:#0f172a;font-size:1rem;font-weight:700;">Appointment Request Details</h4>' +
           '<div style="display:grid;gap:10px;">' +
-          '<div><div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Patient</div><input id="apptReqPatient" type="text" value="' + escapeHtml(ap.patient) + '" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;" /></div>' +
+          '<div><div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Patient</div><input id="apptReqPatient" type="text" value="' + escapeHtml(prefillPatient) + '" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;" /></div>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
           '<div><div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Date</div><input id="apptReqDate" type="date" value="' + escapeHtml(ap.date) + '" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;" /></div>' +
           '<div><div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Time</div><input id="apptReqTime" type="time" value="' + escapeHtml((ap.time || '').substring(0, 5)) + '" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;" /></div>' +
