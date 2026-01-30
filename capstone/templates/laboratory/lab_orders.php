@@ -66,6 +66,16 @@ try {
       $testDate = trim($_POST['test_date'] ?? '');
       $notes    = trim($_POST['notes'] ?? '');
       $description = $testName; // reuse test name for description column
+      $prevStatus = '';
+      if ($action === 'update' && $testId > 0) {
+        try {
+          $ps = $pdo->prepare('SELECT status FROM lab_tests WHERE id = :id LIMIT 1');
+          $ps->execute([':id' => $testId]);
+          $prevStatus = (string)($ps->fetchColumn() ?: '');
+        } catch (Throwable $e) {
+          $prevStatus = '';
+        }
+      }
       $errs = [];
       if ($testName === '') $errs[] = 'Test name is required';
       if ($patient === '')  $errs[] = 'Patient is required';
@@ -134,6 +144,107 @@ try {
             $params[':uid'] = $uid;
           }
           $stmt->execute($params);
+
+          if ($prevStatus !== 'Completed' && $status === 'Completed') {
+            try {
+              $pdo->exec("CREATE TABLE IF NOT EXISTS patient_notifications (
+                id BIGSERIAL PRIMARY KEY,
+                patient_name TEXT NOT NULL,
+                user_id BIGINT,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                is_read BOOLEAN NOT NULL DEFAULT false,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+              )");
+            } catch (Throwable $e) {
+            }
+
+            $patientUserId = null;
+            try {
+              $u = $pdo->prepare('SELECT id FROM users WHERE LOWER(TRIM(full_name)) = LOWER(TRIM(:n)) LIMIT 1');
+              $u->execute([':n' => $patient]);
+              $pid = $u->fetchColumn();
+              if ($pid !== false && $pid !== null && ctype_digit((string)$pid)) {
+                $patientUserId = (int)$pid;
+              }
+            } catch (Throwable $e) {
+              $patientUserId = null;
+            }
+
+            $notifTitle = 'Lab result ready';
+            $notifMsg = 'Your lab test result is now available: ' . $testName . ' (' . $testDate . ').';
+            try {
+              $n = $pdo->prepare('INSERT INTO patient_notifications (patient_name, user_id, title, message, is_read) VALUES (:patient_name, :user_id, :title, :message, false)');
+              $n->execute([
+                ':patient_name' => $patient,
+                ':user_id' => $patientUserId,
+                ':title' => $notifTitle,
+                ':message' => $notifMsg,
+              ]);
+            } catch (Throwable $e) {
+            }
+
+            try {
+              $pdo->exec("CREATE TABLE IF NOT EXISTS patient_records (
+                id BIGSERIAL PRIMARY KEY,
+                patient TEXT,
+                \"date\" TEXT,
+                \"time\" TEXT,
+                notes TEXT,
+                created_at TIMESTAMPTZ DEFAULT now(),
+                doctor TEXT,
+                medicine TEXT,
+                dosage TEXT,
+                created_by_user_id BIGINT
+              )");
+            } catch (Throwable $e) {
+            }
+
+            $createdAt = date('Y-m-d H:i:s');
+            $datePart = $testDate !== '' ? $testDate : substr($createdAt, 0, 10);
+            $timePart = substr($createdAt, 11, 8);
+            $labName = (string)($_SESSION['user']['full_name'] ?? '');
+
+            $summary = '';
+            try {
+              $decoded = json_decode($notes, true);
+              if (is_array($decoded) && isset($decoded['items']) && is_array($decoded['items'])) {
+                $pairs = [];
+                foreach ($decoded['items'] as $it) {
+                  if (!is_array($it)) continue;
+                  $n1 = trim((string)($it['name'] ?? ''));
+                  $v1 = trim((string)($it['value'] ?? ''));
+                  if ($n1 === '' && $v1 === '') continue;
+                  $pairs[] = ($n1 !== '' ? ($n1 . ': ') : '') . $v1;
+                }
+                $summary = implode('; ', $pairs);
+              }
+            } catch (Throwable $e) {
+              $summary = '';
+            }
+
+            $recordNotes = 'Lab result - ' . $testName;
+            if ($summary !== '') {
+              $recordNotes .= ' | ' . $summary;
+            }
+
+            try {
+              $pr = $pdo->prepare('INSERT INTO patient_records (patient, "date", "time", notes, created_at, doctor, medicine, dosage, created_by_user_id)
+                VALUES (:patient, :date, :time, :notes, :created_at, :doctor, :medicine, :dosage, :uid)');
+              $pr->execute([
+                ':patient' => $patient,
+                ':date' => $datePart,
+                ':time' => $timePart,
+                ':notes' => $recordNotes,
+                ':created_at' => $createdAt,
+                ':doctor' => ($labName !== '' ? $labName : null),
+                ':medicine' => 'Laboratory',
+                ':dosage' => null,
+                ':uid' => $uid,
+              ]);
+            } catch (Throwable $e) {
+            }
+          }
           $_SESSION['flash_success'] = 'Laboratory test updated successfully!';
         }
       }

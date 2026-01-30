@@ -289,6 +289,42 @@ include __DIR__ . '/../../includes/header.php';
         viewModal.style.display = 'block';
         document.body.style.overflow = 'hidden';
 
+        function escapeHtml(s) {
+          return String(s || '').replace(/[&<>\"]/g, function(c) {
+            return {
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              '"': '&quot;'
+            } [c];
+          });
+        }
+
+        function renderResultNotes(raw) {
+          var txt = (raw == null ? '' : String(raw)).trim();
+          if (!txt) return '';
+          try {
+            var obj = JSON.parse(txt);
+            if (obj && Array.isArray(obj.items)) {
+              var items = obj.items
+                .map(function(it) {
+                  var name = (it && it.name != null) ? String(it.name).trim() : '';
+                  var value = (it && it.value != null) ? String(it.value).trim() : '';
+                  if (!name && !value) return '';
+                  return '<li>' + (name ? ('<strong>' + escapeHtml(name) + '</strong>: ') : '') + escapeHtml(value) + '</li>';
+                })
+                .filter(function(x) {
+                  return x !== '';
+                })
+                .join('');
+              if (!items) return '';
+              var label = obj.group ? ('<div style="margin-top:6px;color:#64748b;font-size:0.85rem;font-weight:600;">' + escapeHtml(obj.group) + '</div>') : '';
+              return label + '<ul style="padding-left:18px;margin:6px 0 0;list-style:disc;">' + items + '</ul>';
+            }
+          } catch (e) {}
+          return '<div style="margin-top:6px;">' + escapeHtml(txt) + '</div>';
+        }
+
         // Populate modal with record data
         document.getElementById('viewPatient').textContent = recordData.patient || '—';
         document.getElementById('viewDate').textContent = recordData.latestDate || '—';
@@ -296,25 +332,27 @@ include __DIR__ . '/../../includes/header.php';
 
         // Build a readable list of all tests for this patient
         var notesEl = document.getElementById('viewNotes');
-        var testsHtml = '\u2014';
+        var testsHtml = '—';
         if (Array.isArray(recordData.records) && recordData.records.length > 0) {
           var rowsHtml = recordData.records.map(function(r) {
             var testName = r.test_name || '';
             var testDate = r.test_date || '';
             var status = r.status || '';
+            var resultHtml = renderResultNotes(r.notes || '');
             return '<li><strong>' +
-              (testName ? testName.replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Test') +
+              (testName ? escapeHtml(testName) : 'Test') +
               '</strong>' +
-              (testDate ? ' <span style="color:#64748b;">[' + testDate.replace(/</g, '&lt;').replace(/>/g, '&gt;') + ']</span>' : '') +
-              (status ? ' <span>' + status.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>' : '') +
+              (testDate ? ' <span style="color:#64748b;">[' + escapeHtml(testDate) + ']</span>' : '') +
+              (status ? ' <span>' + escapeHtml(status) + '</span>' : '') +
+              (resultHtml ? resultHtml : '') +
               '</li>';
           }).join('');
           testsHtml = '<ul style="padding-left:18px;margin:0;list-style:disc;">' + rowsHtml + '</ul>';
           // Show the most recent test in the "Test" field for quick reference
           var latest = recordData.records[0];
-          document.getElementById('viewTest').textContent = (latest && latest.test_name) ? latest.test_name : '\u2014';
+          document.getElementById('viewTest').textContent = (latest && latest.test_name) ? latest.test_name : '—';
         } else {
-          document.getElementById('viewTest').textContent = '\u2014';
+          document.getElementById('viewTest').textContent = '—';
         }
         if (notesEl) {
           notesEl.innerHTML = testsHtml;
