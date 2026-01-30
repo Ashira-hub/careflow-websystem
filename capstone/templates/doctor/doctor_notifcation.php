@@ -88,6 +88,68 @@ include __DIR__ . '/../../includes/header.php'; ?>
     var currentNotificationId = null;
 
     var doctorId = <?php echo isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0; ?>;
+    var doctorName = <?php echo json_encode((string)($_SESSION['user']['full_name'] ?? 'Doctor')); ?>;
+
+    function getAcceptedIds() {
+      try {
+        var raw = localStorage.getItem('doctorAcceptedAppointmentNotifIds');
+        var arr = JSON.parse(raw || '[]');
+        return Array.isArray(arr) ? arr.map(String) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function addAcceptedId(id) {
+      try {
+        var ids = getAcceptedIds();
+        var sid = String(id || '');
+        if (!sid) return;
+        if (ids.indexOf(sid) === -1) ids.push(sid);
+        localStorage.setItem('doctorAcceptedAppointmentNotifIds', JSON.stringify(ids));
+      } catch (e) {}
+    }
+
+    function isAppointmentRequest(n) {
+      var t = String((n && n.title) || '').toLowerCase();
+      var b = String((n && n.body) || '').toLowerCase();
+      if (t.indexOf('appointment') !== -1 && t.indexOf('request') !== -1) return true;
+      if (b.indexOf('appointment request') !== -1) return true;
+      if (b.indexOf('requested an appointment') !== -1) return true;
+      return false;
+    }
+
+    function parseAppointmentDetails(text) {
+      var out = {
+        patient: '',
+        date: '',
+        time: '',
+        notes: ''
+      };
+      var s = String(text || '');
+
+      var mPatient = s.match(/patient\s*:\s*([^|\n]+)/i);
+      if (mPatient && mPatient[1]) out.patient = mPatient[1].trim();
+
+      if (!out.patient) {
+        var mRem = s.match(/reminder\s*:\s*(.*?)\s+appointment\s+on\s+/i);
+        if (mRem && mRem[1]) out.patient = mRem[1].trim();
+      }
+
+      var mDate = s.match(/(\d{4}-\d{2}-\d{2})/);
+      if (mDate && mDate[1]) out.date = mDate[1];
+
+      var mTime = s.match(/\b(\d{1,2}:\d{2}(?::\d{2})?)\b/);
+      if (mTime && mTime[1]) {
+        out.time = mTime[1];
+        if (out.time.length === 5) out.time = out.time + ':00';
+      }
+
+      var mNotes = s.match(/notes\s*:\s*([^\n]+)/i);
+      if (mNotes && mNotes[1]) out.notes = mNotes[1].trim();
+
+      return out;
+    }
 
     async function load() {
       try {
@@ -111,6 +173,14 @@ include __DIR__ . '/../../includes/header.php'; ?>
           rawItems = data.items;
         } else if (data && Array.isArray(data.notifications)) {
           rawItems = data.notifications;
+        }
+
+        var acceptedIds = getAcceptedIds();
+        if (acceptedIds.length) {
+          rawItems = rawItems.filter(function(n) {
+            var idVal = (n && (n.id != null ? n.id : n.notification_id)) != null ? (n.id != null ? n.id : n.notification_id) : '';
+            return acceptedIds.indexOf(String(idVal)) === -1;
+          });
         }
 
         notifications = rawItems.map(function(n, idx) {
@@ -183,6 +253,25 @@ include __DIR__ . '/../../includes/header.php'; ?>
       // Mark as read when opened
       notification.read = true;
 
+      var apptControls = '';
+      if (isAppointmentRequest(notification)) {
+        var ap = parseAppointmentDetails(notification.body);
+        apptControls = '<div style="padding:20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">' +
+          '<h4 style="margin:0 0 12px;color:#0f172a;font-size:1rem;font-weight:700;">Appointment Request Details</h4>' +
+          '<div style="display:grid;gap:10px;">' +
+          '<div><div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Patient</div><input id="apptReqPatient" type="text" value="' + escapeHtml(ap.patient) + '" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;" /></div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+          '<div><div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Date</div><input id="apptReqDate" type="date" value="' + escapeHtml(ap.date) + '" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;" /></div>' +
+          '<div><div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Time</div><input id="apptReqTime" type="time" value="' + escapeHtml((ap.time || '').substring(0, 5)) + '" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;" /></div>' +
+          '</div>' +
+          '<div><div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Notes (optional)</div><textarea id="apptReqNotes" rows="2" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;resize:vertical;">' + escapeHtml(ap.notes) + '</textarea></div>' +
+          '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px;">' +
+          '<button type="button" class="btn btn-primary" id="acceptAppointmentBtn" style="padding:10px 16px;border-radius:10px;font-weight:700;background:linear-gradient(135deg,#0a5d39,#10b981);">Accept</button>' +
+          '</div>' +
+          '</div>' +
+          '</div>';
+      }
+
       // Populate modal content
       modalContent.innerHTML = '<div style="display:grid;gap:20px;">' +
         '<div style="display:flex;align-items:center;gap:12px;padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">' +
@@ -197,6 +286,8 @@ include __DIR__ . '/../../includes/header.php'; ?>
         '<h4 style="margin:0 0 12px;color:#0f172a;font-size:1rem;font-weight:600;">Message Details</h4>' +
         '<div style="color:#374151;line-height:1.6;font-size:0.95rem;">' + escapeHtml(notification.body) + '</div>' +
         '</div>' +
+
+        apptControls +
 
         '</div>';
 
@@ -275,6 +366,103 @@ include __DIR__ . '/../../includes/header.php'; ?>
     if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
     if (closeModalBtn2) closeModalBtn2.addEventListener('click', closeModal);
     if (backdrop) backdrop.addEventListener('click', closeModal);
+
+    async function acceptAppointmentFromModal() {
+      if (!currentNotificationId) return;
+      var notification = notifications.find(function(n) {
+        return String(n.id) === String(currentNotificationId);
+      });
+      if (!notification) return;
+
+      var patient = (document.getElementById('apptReqPatient') || {}).value || '';
+      var date = (document.getElementById('apptReqDate') || {}).value || '';
+      var time = (document.getElementById('apptReqTime') || {}).value || '';
+      var notes = (document.getElementById('apptReqNotes') || {}).value || '';
+
+      patient = String(patient).trim();
+      date = String(date).trim();
+      time = String(time).trim();
+      notes = String(notes).trim();
+
+      if (!patient || !date || !time) {
+        alert('Please fill Patient, Date, and Time before accepting.');
+        return;
+      }
+
+      if (!confirm('Accept this appointment request?')) return;
+
+      var btn = document.getElementById('acceptAppointmentBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Accepting...';
+        btn.style.opacity = '0.7';
+      }
+
+      try {
+        var res = await fetch('/capstone/appointments/create.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            patient: patient,
+            date: date,
+            time: time,
+            notes: notes,
+            done: false,
+            createdByName: doctorName
+          })
+        });
+        if (!res.ok) {
+          var t = await res.text().catch(function() {
+            return '';
+          });
+          throw new Error(t || 'Failed to create appointment');
+        }
+
+        try {
+          await fetch('/capstone/api/notifications.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              patient_name: patient,
+              title: 'Appointment accepted',
+              message: 'Your appointment request has been accepted by ' + doctorName + ' on ' + date + ' ' + time + '.'
+            })
+          });
+        } catch (e) {}
+
+        addAcceptedId(currentNotificationId);
+        var idx = notifications.findIndex(function(n) {
+          return String(n.id) === String(currentNotificationId);
+        });
+        if (idx !== -1) {
+          notifications.splice(idx, 1);
+        }
+        render();
+        closeModal();
+
+        alert('Appointment accepted. It should now appear in your Appointment List.');
+      } catch (err) {
+        alert('Error: ' + err.message);
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Accept';
+          btn.style.opacity = '';
+        }
+      }
+    }
+
+    if (modalContent) {
+      modalContent.addEventListener('click', function(e) {
+        var btn = e.target.closest('#acceptAppointmentBtn');
+        if (!btn) return;
+        e.preventDefault();
+        acceptAppointmentFromModal();
+      });
+    }
 
     if (deleteModalBtn) {
       deleteModalBtn.addEventListener('click', function() {
