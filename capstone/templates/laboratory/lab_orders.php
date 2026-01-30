@@ -341,10 +341,18 @@ include __DIR__ . '/../../includes/header.php';
             <input type="date" id="test_date" name="test_date" required min="<?php echo date('Y-m-d'); ?>" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
           </div>
 
-          <!-- Notes (Optional) -->
           <div class="form-field">
-            <label for="notes" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Notes (Optional)</label>
-            <textarea id="notes" name="notes" rows="3" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;resize:vertical;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" placeholder="Additional notes or special instructions..."></textarea>
+            <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Results</label>
+            <div id="resultTypeRadios" style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 10px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;color:#0f172a;"><input type="radio" name="result_group" value="CBC" /> CBC</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;color:#0f172a;"><input type="radio" name="result_group" value="Urinalysis" /> Urinalysis</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;color:#0f172a;"><input type="radio" name="result_group" value="Lipid Profile" /> Lipid</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;color:#0f172a;"><input type="radio" name="result_group" value="Glucose" /> Glucose</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;color:#0f172a;"><input type="radio" name="result_group" value="General" /> General</label>
+            </div>
+            <div id="resultGroupLabel" style="margin:0 0 8px;color:#334155;font-size:0.9rem;font-weight:600;"></div>
+            <ul id="resultsList" style="margin:0;padding-left:18px;"></ul>
+            <input type="hidden" id="notes" name="notes" value="" />
           </div>
         </div>
       </div>
@@ -368,7 +376,188 @@ include __DIR__ . '/../../includes/header.php';
     var form = document.getElementById('addTestForm');
     var modalTitle = document.getElementById('modalTitle');
     var modalSubtitle = document.getElementById('modalSubtitle');
+    var resultsList = document.getElementById('resultsList');
+    var resultGroupLabel = document.getElementById('resultGroupLabel');
+    var resultGroupRadios = Array.from(document.querySelectorAll('input[name="result_group"]'));
     var isUpdateMode = false;
+    var userSelectedGroup = false;
+    var draftResultsByGroup = {};
+
+    function deriveResultGroup(testName) {
+      var n = String(testName || '').toLowerCase();
+      if (n.includes('cbc') || n.includes('complete blood count')) return 'CBC';
+      if (n.includes('urinalysis') || n.includes('urine')) return 'Urinalysis';
+      if (n.includes('lipid')) return 'Lipid Profile';
+      if (n.includes('fbs') || n.includes('fasting blood sugar') || n.includes('glucose')) return 'Glucose';
+      return 'General';
+    }
+
+    function getSelectedGroup() {
+      var checked = resultGroupRadios.find(function(r) {
+        return r && r.checked;
+      });
+      return checked ? checked.value : 'General';
+    }
+
+    function setSelectedGroup(group) {
+      var g = group || 'General';
+      resultGroupRadios.forEach(function(r) {
+        if (r) r.checked = (r.value === g);
+      });
+    }
+
+    function getResultTemplateItems(group) {
+      if (group === 'CBC') {
+        return ['WBC', 'RBC', 'Hemoglobin', 'Hematocrit', 'Platelet', 'MCV', 'MCH', 'MCHC'];
+      }
+      if (group === 'Urinalysis') {
+        return ['Color', 'Appearance', 'pH', 'Specific Gravity', 'Protein', 'Glucose', 'Ketones', 'Blood'];
+      }
+      if (group === 'Lipid Profile') {
+        return ['Total Cholesterol', 'Triglycerides', 'HDL', 'LDL', 'VLDL'];
+      }
+      if (group === 'Glucose') {
+        return ['Fasting Blood Sugar'];
+      }
+      return ['Result'];
+    }
+
+    function parseStoredResults(raw, fallbackGroup) {
+      var txt = (raw == null ? '' : String(raw)).trim();
+      var group = fallbackGroup || 'General';
+      if (!txt) {
+        return {
+          group: group,
+          items: getResultTemplateItems(group).map(function(name) {
+            return {
+              name: name,
+              value: ''
+            };
+          })
+        };
+      }
+      try {
+        var obj = JSON.parse(txt);
+        if (obj && Array.isArray(obj.items)) {
+          obj.group = obj.group || group;
+          return obj;
+        }
+      } catch (e) {}
+      return {
+        group: group,
+        items: [{
+          name: getResultTemplateItems(group)[0] || 'Result',
+          value: txt
+        }]
+      };
+    }
+
+    function normalizeResultsForGroup(group, incoming) {
+      var g = group || 'General';
+      var templates = getResultTemplateItems(g);
+      var byName = {};
+      (incoming && Array.isArray(incoming.items) ? incoming.items : []).forEach(function(it) {
+        if (!it) return;
+        var name = String(it.name || '').trim();
+        if (!name) return;
+        byName[name] = (it.value == null ? '' : String(it.value));
+      });
+      var items = templates.map(function(name) {
+        return {
+          name: name,
+          value: (Object.prototype.hasOwnProperty.call(byName, name) ? byName[name] : '')
+        };
+      });
+      return {
+        group: g,
+        items: items
+      };
+    }
+
+    function renderResults(group, stored) {
+      var parsed = parseStoredResults(stored, group);
+      var data = normalizeResultsForGroup(group, parsed);
+      if (resultGroupLabel) {
+        resultGroupLabel.textContent = data.group;
+      }
+      if (!resultsList) return;
+      resultsList.innerHTML = '';
+
+      (data.items || []).forEach(function(item, idx) {
+        var li = document.createElement('li');
+        li.style.marginBottom = '10px';
+
+        var wrap = document.createElement('div');
+        wrap.style.display = 'grid';
+        wrap.style.gridTemplateColumns = '1fr';
+        wrap.style.gap = '6px';
+
+        var label = document.createElement('label');
+        label.style.display = 'block';
+        label.style.fontWeight = '600';
+        label.style.color = '#0f172a';
+        label.style.fontSize = '0.9rem';
+        label.textContent = data.group + ' - ' + String(item.name || ('Result ' + (idx + 1)));
+
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'result-item-input';
+        input.setAttribute('data-result-name', String(item.name || 'Result'));
+        input.value = (item.value == null ? '' : String(item.value));
+        input.style.width = '100%';
+        input.style.padding = '12px 16px';
+        input.style.border = '2px solid #e2e8f0';
+        input.style.borderRadius = '12px';
+        input.style.fontSize = '0.95rem';
+        input.style.transition = 'all 0.2s ease';
+        input.style.background = '#f8fafc';
+        input.onfocus = function() {
+          this.style.borderColor = '#0a5d39';
+          this.style.background = '#fff';
+        };
+        input.onblur = function() {
+          this.style.borderColor = '#e2e8f0';
+          this.style.background = '#f8fafc';
+        };
+
+        wrap.appendChild(label);
+        wrap.appendChild(input);
+        li.appendChild(wrap);
+        resultsList.appendChild(li);
+      });
+    }
+
+    function serializeResults(group) {
+      var g = group || getSelectedGroup();
+      var inputs = resultsList ? Array.from(resultsList.querySelectorAll('.result-item-input')) : [];
+      var items = inputs.map(function(inp) {
+        return {
+          name: inp.getAttribute('data-result-name') || 'Result',
+          value: inp.value
+        };
+      });
+      return JSON.stringify({
+        group: g,
+        items: items
+      });
+    }
+
+    function cacheCurrentDraft() {
+      var g = getSelectedGroup();
+      try {
+        var raw = serializeResults(g);
+        draftResultsByGroup[g] = JSON.parse(raw);
+      } catch (e) {}
+    }
+
+    function renderFromDraftOrStored(group, storedRaw) {
+      var g = group || 'General';
+      if (draftResultsByGroup[g]) {
+        renderResults(g, JSON.stringify(draftResultsByGroup[g]));
+        return;
+      }
+      renderResults(g, storedRaw || '');
+    }
 
     function openForAdd() {
       if (modal) {
@@ -385,6 +574,13 @@ include __DIR__ . '/../../includes/header.php';
 
         // Clear hidden ID field
         document.getElementById('test_id').value = '';
+        var notesField = document.getElementById('notes');
+        if (notesField) notesField.value = '';
+        userSelectedGroup = false;
+        draftResultsByGroup = {};
+        var defaultGroup = deriveResultGroup(document.getElementById('test_name').value);
+        setSelectedGroup(defaultGroup);
+        renderFromDraftOrStored(defaultGroup, '');
       }
     }
 
@@ -405,7 +601,13 @@ include __DIR__ . '/../../includes/header.php';
         document.getElementById('category').value = testData.category;
         document.getElementById('status').value = testData.status;
         document.getElementById('test_date').value = testData.date;
-        document.getElementById('notes').value = testData.notes || '';
+        var notesField = document.getElementById('notes');
+        if (notesField) notesField.value = (testData.notes || '');
+        userSelectedGroup = false;
+        draftResultsByGroup = {};
+        var parsed = parseStoredResults(testData.notes || '', 'General');
+        setSelectedGroup(parsed.group || 'General');
+        renderFromDraftOrStored(getSelectedGroup(), testData.notes || '');
       }
     }
 
@@ -416,6 +618,13 @@ include __DIR__ . '/../../includes/header.php';
         // Reset form
         if (form) form.reset();
         isUpdateMode = false;
+        if (resultsList) resultsList.innerHTML = '';
+        if (resultGroupLabel) resultGroupLabel.textContent = '';
+        userSelectedGroup = false;
+        draftResultsByGroup = {};
+        resultGroupRadios.forEach(function(r) {
+          if (r) r.checked = false;
+        });
       }
     }
 
@@ -545,10 +754,35 @@ include __DIR__ . '/../../includes/header.php';
         var category = document.getElementById('category').value;
         var status = document.getElementById('status').value;
         var testDate = document.getElementById('test_date').value;
-        var notes = document.getElementById('notes').value.trim();
+        var notesField = document.getElementById('notes');
+        if (notesField) {
+          notesField.value = serializeResults(getSelectedGroup());
+        }
         // Let the browser submit the form to PHP for DB persistence
       });
     }
+
+    var testNameInput = document.getElementById('test_name');
+    if (testNameInput) {
+      testNameInput.addEventListener('input', function() {
+        if (!modal || modal.style.display !== 'block') return;
+        if (userSelectedGroup) return;
+        var defaultGroup = deriveResultGroup(testNameInput.value);
+        setSelectedGroup(defaultGroup);
+        renderFromDraftOrStored(defaultGroup, document.getElementById('notes') ? document.getElementById('notes').value : '');
+      });
+    }
+
+    resultGroupRadios.forEach(function(r) {
+      if (!r) return;
+      r.addEventListener('change', function() {
+        if (!modal || modal.style.display !== 'block') return;
+        cacheCurrentDraft();
+        userSelectedGroup = true;
+        var notesRaw = document.getElementById('notes') ? document.getElementById('notes').value : '';
+        renderFromDraftOrStored(getSelectedGroup(), notesRaw);
+      });
+    });
 
     // Search and Filter functionality
     var searchInput = document.getElementById('searchInput');
