@@ -3,11 +3,11 @@
 date_default_timezone_set('Asia/Kuala_Lumpur');
 // PostgreSQL connection via PDO
 // Edit these values to match your local setup.
-$PG_HOST = getenv('PGHOST') ?: 'trolley.proxy.rlwy.net';
-$PG_PORT = getenv('PGPORT') ?: '43987';
+$PG_HOST = getenv('PGHOST') ?: 'caboose.proxy.rlwy.net';
+$PG_PORT = getenv('PGPORT') ?: '24200';
 $PG_DB   = getenv('PGDATABASE') ?: 'railway';
 $PG_USER = getenv('PGUSER') ?: 'postgres';
-$PG_PASS = getenv('PGPASSWORD') ?: 'crLmSsXvBTuadOMQrLmTPMDKKrBtQBJk';
+$PG_PASS = getenv('PGPASSWORD') ?: 'WtziBHNgEUmPZrDgBRccZyUORgMuHGtM';
 
 function get_pdo(): PDO
 {
