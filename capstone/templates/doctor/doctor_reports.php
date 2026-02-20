@@ -563,11 +563,83 @@ include __DIR__ . '/../../includes/header.php'; ?>
             </svg>
           </div>
         </div>
-        <div class="ad-bars" aria-label="Daily appointments bar chart">
-          <?php foreach ($dailyAppts as $day => $cnt): $h = max(6, (int)round(((int)$cnt / $maxDaily) * 100)); ?>
-            <div class="ad-bar" title="<?php echo dr_escape($day); ?>: <?php echo (int)$cnt; ?>" style="height:<?php echo (int)$h; ?>%;"></div>
-          <?php endforeach; ?>
+        <?php
+        $chartLabels = [];
+        $chartDaily = [];
+        $chartCum = [];
+        $running = 0;
+        foreach ($dailyAppts as $day => $cnt) {
+          $chartLabels[] = substr((string)$day, -2);
+          $val = (int)$cnt;
+          $chartDaily[] = $val;
+          $running += $val;
+          $chartCum[] = $running;
+        }
+        ?>
+        <div class="ad-bars" style="height:260px;">
+          <canvas id="doctorDailyApptsChart" aria-label="Daily appointments chart" role="img"></canvas>
         </div>
+        <script>
+          (function() {
+            var el = document.getElementById('doctorDailyApptsChart');
+            if (!el || !window.Chart) return;
+            var labels = <?php echo json_encode($chartLabels); ?>;
+            var daily = <?php echo json_encode($chartDaily); ?>;
+            var cum = <?php echo json_encode($chartCum); ?>;
+            new Chart(el, {
+              data: {
+                labels: labels,
+                datasets: [{
+                  type: 'bar',
+                  label: 'Units Sold',
+                  data: daily,
+                  backgroundColor: '#2563eb',
+                  borderRadius: 6,
+                  yAxisID: 'y'
+                }, {
+                  type: 'line',
+                  label: 'Total Transaction',
+                  data: cum,
+                  borderColor: '#f97316',
+                  backgroundColor: 'rgba(249, 115, 22, 0.15)',
+                  tension: 0.35,
+                  pointRadius: 3,
+                  pointHoverRadius: 4,
+                  yAxisID: 'y1'
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'bottom'
+                  }
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    title: {
+                      display: true,
+                      text: 'Units Sold'
+                    }
+                  },
+                  y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    grid: {
+                      drawOnChartArea: false
+                    },
+                    title: {
+                      display: true,
+                      text: 'Total Transactions'
+                    }
+                  }
+                }
+              }
+            });
+          })();
+        </script>
       </div>
     </div>
   </div>

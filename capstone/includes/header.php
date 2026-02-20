@@ -100,6 +100,7 @@ try {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/capstone/assets/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <?php if (strpos($page, 'Doctor Dashboard') !== false): ?>
     <link rel="stylesheet" href="/capstone/assets/css/doctor-dashboard.css" />
     <!-- try sanako ni -->
