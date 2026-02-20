@@ -114,6 +114,36 @@ foreach ($entries as $entry) {
   }
 }
 
+// Schedule requests per day (nurse shift requests)
+$scheduleFile = __DIR__ . '/../../data/nurse_shift_requests.json';
+$scheduleItems = [];
+if (file_exists($scheduleFile)) {
+  $raw = file_get_contents($scheduleFile);
+  $decoded = json_decode($raw, true);
+  if (is_array($decoded)) {
+    $scheduleItems = $decoded;
+  }
+}
+$dailyScheduleRequests = [];
+for ($d = 1; $d <= $lastDay; $d++) {
+  $key = sprintf('%04d-%02d-%02d', $year, $month, $d);
+  $dailyScheduleRequests[$key] = 0;
+}
+foreach ($scheduleItems as $item) {
+  if (!is_array($item)) continue;
+  $dateStr = trim((string)($item['date'] ?? ''));
+  $timeStr = trim((string)($item['time'] ?? ''));
+  $combined = trim($dateStr . ' ' . $timeStr);
+  $ts = $combined !== '' ? strtotime($combined) : ($dateStr !== '' ? strtotime($dateStr) : null);
+  if (!$ts) continue;
+  if ($fromTs && $ts < $fromTs) continue;
+  if ($toTs && $ts > $toTs) continue;
+  $dayKey = date('Y-m-d', $ts);
+  if (array_key_exists($dayKey, $dailyScheduleRequests)) {
+    $dailyScheduleRequests[$dayKey] = (int)$dailyScheduleRequests[$dayKey] + 1;
+  }
+}
+
 $maxDaily = 0;
 foreach ($dailyRequests as $k => $v) {
   $maxDaily = max($maxDaily, (int)$v);
@@ -475,7 +505,7 @@ include __DIR__ . '/../../includes/header.php';
         $chartDaily = [];
         $chartCum = [];
         $running = 0;
-        foreach ($dailyRequests as $day => $cnt) {
+        foreach ($dailyScheduleRequests as $day => $cnt) {
           $chartLabels[] = substr((string)$day, -2);
           $val = (int)$cnt;
           $chartDaily[] = $val;
@@ -498,14 +528,14 @@ include __DIR__ . '/../../includes/header.php';
                 labels: labels,
                 datasets: [{
                   type: 'bar',
-                  label: 'Units Sold',
+                  label: 'Request Schedule',
                   data: daily,
                   backgroundColor: '#2563eb',
                   borderRadius: 6,
                   yAxisID: 'y'
                 }, {
                   type: 'line',
-                  label: 'Total Transaction',
+                  label: 'Total Request Schedule',
                   data: cum,
                   borderColor: '#f97316',
                   backgroundColor: 'rgba(249, 115, 22, 0.15)',
@@ -526,20 +556,52 @@ include __DIR__ . '/../../includes/header.php';
                 scales: {
                   y: {
                     beginAtZero: true,
+                    min: 0,
+                    max: 50,
+                    ticks: {
+                      stepSize: 1,
+                      callback: function(value) {
+                        var allowed = {
+                          0: true,
+                          1: true,
+                          10: true,
+                          20: true,
+                          30: true,
+                          50: true
+                        };
+                        return allowed[value] ? value : '';
+                      }
+                    },
                     title: {
                       display: true,
-                      text: 'Units Sold'
+                      text: 'Request Schedule'
                     }
                   },
                   y1: {
                     beginAtZero: true,
+                    min: 0,
+                    max: 50,
                     position: 'right',
                     grid: {
                       drawOnChartArea: false
                     },
+                    ticks: {
+                      stepSize: 1,
+                      callback: function(value) {
+                        var allowed = {
+                          0: true,
+                          1: true,
+                          10: true,
+                          20: true,
+                          30: true,
+                          50: true
+                        };
+                        return allowed[value] ? value : '';
+                      }
+                    },
                     title: {
                       display: true,
-                      text: 'Total Transactions'
+                      text: 'Total Request Schedule'
                     }
                   }
                 }

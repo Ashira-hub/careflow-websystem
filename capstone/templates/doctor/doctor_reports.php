@@ -591,14 +591,14 @@ include __DIR__ . '/../../includes/header.php'; ?>
                 labels: labels,
                 datasets: [{
                   type: 'bar',
-                  label: 'Units Sold',
+                  label: 'Appointments',
                   data: daily,
                   backgroundColor: '#2563eb',
                   borderRadius: 6,
                   yAxisID: 'y'
                 }, {
                   type: 'line',
-                  label: 'Total Transaction',
+                  label: 'Total Appointments',
                   data: cum,
                   borderColor: '#f97316',
                   backgroundColor: 'rgba(249, 115, 22, 0.15)',
@@ -621,7 +621,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
                     beginAtZero: true,
                     title: {
                       display: true,
-                      text: 'Units Sold'
+                      text: 'Appointments'
                     }
                   },
                   y1: {
@@ -632,7 +632,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
                     },
                     title: {
                       display: true,
-                      text: 'Total Transactions'
+                      text: 'Total Appointments'
                     }
                   }
                 }

@@ -135,8 +135,29 @@ try {
       }
       $dispensedCount++;
       $dayKey = date('Y-m-d', $ts);
+
+      $body = (string)($n['body'] ?? '');
+      $qty = 0;
+      if ($body !== '') {
+        $parts = explode('|', $body);
+        foreach ($parts as $part) {
+          $raw = trim($part);
+          if (stripos($raw, 'qty:') === 0) {
+            $num = trim(substr($raw, 4));
+            $val = (int)preg_replace('/[^0-9]/', '', $num);
+            if ($val > 0) {
+              $qty = $val;
+            }
+            break;
+          }
+        }
+      }
+      if ($qty <= 0) {
+        $qty = 1;
+      }
+
       if (array_key_exists($dayKey, $dailyDispensed)) {
-        $dailyDispensed[$dayKey] = (int)$dailyDispensed[$dayKey] + 1;
+        $dailyDispensed[$dayKey] = (int)$dailyDispensed[$dayKey] + $qty;
       }
     }
   }
@@ -717,14 +738,14 @@ include __DIR__ . '/../../includes/header.php';
                 labels: labels,
                 datasets: [{
                   type: 'bar',
-                  label: 'Units Sold',
+                  label: 'Dispensed Medicine',
                   data: daily,
                   backgroundColor: '#2563eb',
                   borderRadius: 6,
                   yAxisID: 'y'
                 }, {
                   type: 'line',
-                  label: 'Total Transaction',
+                  label: 'Total Dispensed Medicine',
                   data: cum,
                   borderColor: '#f97316',
                   backgroundColor: 'rgba(249, 115, 22, 0.15)',
@@ -745,20 +766,52 @@ include __DIR__ . '/../../includes/header.php';
                 scales: {
                   y: {
                     beginAtZero: true,
+                    min: 0,
+                    max: 50,
+                    ticks: {
+                      stepSize: 1,
+                      callback: function(value) {
+                        var allowed = {
+                          0: true,
+                          1: true,
+                          10: true,
+                          20: true,
+                          30: true,
+                          50: true
+                        };
+                        return allowed[value] ? value : '';
+                      }
+                    },
                     title: {
                       display: true,
-                      text: 'Units Sold'
+                      text: 'Dispensed Medicine'
                     }
                   },
                   y1: {
                     beginAtZero: true,
+                    min: 0,
+                    max: 50,
                     position: 'right',
                     grid: {
                       drawOnChartArea: false
                     },
+                    ticks: {
+                      stepSize: 1,
+                      callback: function(value) {
+                        var allowed = {
+                          0: true,
+                          1: true,
+                          10: true,
+                          20: true,
+                          30: true,
+                          50: true
+                        };
+                        return allowed[value] ? value : '';
+                      }
+                    },
                     title: {
                       display: true,
-                      text: 'Total Transactions'
+                      text: 'Total Dispensed Medicine'
                     }
                   }
                 }
