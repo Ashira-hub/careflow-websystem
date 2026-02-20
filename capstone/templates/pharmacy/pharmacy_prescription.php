@@ -565,6 +565,15 @@ $rx_autoload_id = isset($_GET['prescription_id']) ? (int)$_GET['prescription_id'
           pid = parseInt(pid || 0, 10);
           if (!pid) return;
           try {
+            // Prefer opening the actual notification item (so Accept/Reject updates the correct notification id)
+            var existing = Array.isArray(items) ? items.find(function(n) {
+              return parseInt(n.prescription_id || 0, 10) === pid;
+            }) : null;
+            if (existing) {
+              openModal(existing);
+              return;
+            }
+
             var res = await fetch('/capstone/prescriptions/get.php?id=' + encodeURIComponent(pid));
             if (!res.ok) throw new Error('Failed to load prescription details');
             var payload = await res.json();
