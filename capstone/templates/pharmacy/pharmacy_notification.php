@@ -86,7 +86,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
 
     async function load() {
       try {
-        var res = await fetch('/capstone/notifications/pharmacy.php?role=pharmacy');
+        var res = await fetch('/capstone/notifications/pharmacy.php?role=pharmacy&sync=prescriptions');
         if (!res.ok) throw new Error('Failed to load notifications');
         var data = await res.json();
         notifications = Array.isArray(data.items) ? data.items.map(function(n) {
@@ -133,6 +133,20 @@ include __DIR__ . '/../../includes/header.php'; ?>
       if (!notification || !modal || !modalContent) return;
       currentNotificationId = notificationId;
       notification.read = true;
+
+      // Best-effort mark-as-read in backend store
+      try {
+        fetch('/capstone/notifications/pharmacy.php?role=pharmacy&id=' + encodeURIComponent(notificationId), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            read: true
+          })
+        });
+      } catch (e) {}
+
       modalContent.innerHTML = '<div style="display:grid;gap:20px;">' +
         '<div style="display:flex;align-items:center;gap:12px;padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">' +
         '<div style="width:40px;height:40px;border-radius:50%;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:20px;">🔔</div>' +
@@ -145,6 +159,10 @@ include __DIR__ . '/../../includes/header.php'; ?>
         '<div style="padding:20px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;">' +
         '<h4 style="margin:0 0 12px;color:#0f172a;font-size:1rem;font-weight:600;">Message Details</h4>' +
         '<div style="color:#374151;line-height:1.6;font-size:0.95rem;">' + escapeHtml(notification.body) + '</div>' +
+        '</div>' +
+        (notification.prescription_id ? ('<div style="display:flex;justify-content:flex-end;">' +
+          '<a class="btn btn-primary" style="text-decoration:none;" href="/capstone/templates/pharmacy/pharmacy_prescription.php?prescription_id=' + encodeURIComponent(notification.prescription_id) + '">View prescription</a>' +
+          '</div>') : '') +
         '</div>';
       modal.style.display = 'block';
       document.body.style.overflow = 'hidden';

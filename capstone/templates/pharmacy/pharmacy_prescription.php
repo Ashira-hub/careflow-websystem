@@ -1,5 +1,9 @@
 <?php $page = 'Pharmacy Prescription';
 include __DIR__ . '/../../includes/header.php'; ?>
+
+<?php
+$rx_autoload_id = isset($_GET['prescription_id']) ? (int)$_GET['prescription_id'] : 0;
+?>
 <style>
   /* Scoped styling for this page only */
   .rx-layout {
@@ -268,6 +272,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
 
     <script>
       (function() {
+        var autoloadId = <?php echo json_encode($rx_autoload_id); ?>;
         var tbody = document.getElementById('rxTblBody');
         var modal = document.getElementById('rxModal');
         var mTitle = document.getElementById('rxMTitle');
@@ -485,7 +490,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
 
         async function load() {
           try {
-            var res = await fetch('/capstone/notifications/pharmacy.php');
+            var res = await fetch('/capstone/notifications/pharmacy.php?role=pharmacy&sync=prescriptions');
             if (!res.ok) throw new Error('Failed to load');
             var data = await res.json();
             items = Array.isArray(data.items) ? data.items : [];
@@ -554,6 +559,34 @@ include __DIR__ . '/../../includes/header.php'; ?>
           applyStatusToElement(mStatus, item.status);
           modal.style.display = 'flex';
           updateModalButtons(item.status);
+        }
+
+        async function openModalFromPrescriptionId(pid) {
+          pid = parseInt(pid || 0, 10);
+          if (!pid) return;
+          try {
+            var res = await fetch('/capstone/prescriptions/get.php?id=' + encodeURIComponent(pid));
+            if (!res.ok) throw new Error('Failed to load prescription details');
+            var payload = await res.json();
+            if (!payload || !payload.data) throw new Error('Invalid prescription payload');
+            var r = payload.data;
+
+            openModal({
+              id: pid,
+              title: 'Prescription #' + pid,
+              body: 'PrescriptionID: ' + pid +
+                ' | Patient: ' + (r.patient_name || '') +
+                ' | Medicine: ' + (r.medicine || '') +
+                ' | Qty: ' + (r.quantity || '') +
+                (r.description ? (' | Notes: ' + r.description) : ''),
+              time: r.created_at || '',
+              status: r.status || 'new',
+              doctor_id: r.created_by_user_id || null,
+              prescription_id: pid
+            });
+          } catch (err) {
+            alert('Error: ' + err.message);
+          }
         }
 
         function closeModal() {
@@ -660,7 +693,11 @@ include __DIR__ . '/../../includes/header.php'; ?>
           });
         }
 
-        load();
+        load().then(function() {
+          if (autoloadId) {
+            openModalFromPrescriptionId(autoloadId);
+          }
+        });
       })();
     </script>
 

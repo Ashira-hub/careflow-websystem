@@ -220,11 +220,83 @@ function remove_nurse_prescription($dir, $notificationId)
   save_nurse_prescriptions($file, $filtered);
 }
 
+function sync_pharmacy_prescriptions_into_notifications($dir)
+{
+  $file = role_store_file('pharmacy', $dir);
+  if (!$file) return;
+  if (!file_exists($file)) {
+    @file_put_contents($file, json_encode([]));
+  }
+  $items = load_store($file);
+
+  $maxPid = 0;
+  foreach ($items as $it) {
+    $pid = (int)($it['prescription_id'] ?? 0);
+    if ($pid > $maxPid) $maxPid = $pid;
+  }
+
+  try {
+    $pdo = get_pdo();
+    $stmt = $pdo->prepare("SELECT id, doctor_name, patient_name, medicine, quantity, description, created_at
+      FROM prescription
+      WHERE id > :last_id
+      ORDER BY id ASC");
+    $stmt->execute([':last_id' => $maxPid]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+  } catch (Throwable $e) {
+    return;
+  }
+
+  if (!$rows) return;
+
+  $nextId = 1;
+  if (!empty($items)) {
+    $ids = array_column($items, 'id');
+    $nextId = max($ids) + 1;
+  }
+
+  foreach ($rows as $r) {
+    $pid = (int)($r['id'] ?? 0);
+    if ($pid <= 0) continue;
+
+    $doctor = (string)($r['doctor_name'] ?? '');
+    $patient = (string)($r['patient_name'] ?? '');
+    $medicine = (string)($r['medicine'] ?? '');
+    $qty = (string)($r['quantity'] ?? '');
+    $notes = (string)($r['description'] ?? '');
+    $createdAt = (string)($r['created_at'] ?? '');
+
+    $title = 'New prescription from ' . ($doctor !== '' ? $doctor : 'Doctor');
+    $body = 'PrescriptionID: ' . $pid .
+      ' | Patient: ' . $patient .
+      ' | Medicine: ' . $medicine .
+      ' | Qty: ' . $qty .
+      ($notes !== '' ? (' | Notes: ' . $notes) : '');
+
+    $items[] = [
+      'id' => $nextId++,
+      'title' => $title,
+      'body' => $body,
+      'time' => ($createdAt !== '' ? substr($createdAt, 0, 16) : date('Y-m-d H:i')),
+      'read' => false,
+      'status' => 'new',
+      'prescription_id' => $pid
+    ];
+  }
+
+  save_store($file, $items);
+}
+
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 if ($method === 'GET') {
   $role = isset($_GET['role']) ? strtolower((string)$_GET['role']) : '';
   $doctorId = isset($_GET['doctor_id']) ? (int)$_GET['doctor_id'] : 0;
+  $sync = isset($_GET['sync']) ? strtolower((string)$_GET['sync']) : '';
+
+  if ($role === 'pharmacy' && $sync === 'prescriptions') {
+    sync_pharmacy_prescriptions_into_notifications($storeDir);
+  }
   if ($role === 'doctor' || $role === 'nurse' || $role === 'pharmacy' || $role === 'laboratory') {
     $rf = role_store_file($role, $storeDir, $doctorId);
     if (!file_exists($rf)) {
