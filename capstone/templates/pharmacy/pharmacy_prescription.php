@@ -495,12 +495,12 @@ $rx_autoload_id = isset($_GET['prescription_id']) ? (int)$_GET['prescription_id'
             var data = await res.json();
             items = Array.isArray(data.items) ? data.items : [];
             // Show only doctor-origin pharmacy prescriptions in this list.
-            // Exclude acknowledged/done and any nurse-origin notifications.
+            // Exclude acknowledged/done/rejected/dispensed and any nurse-origin notifications.
             items = items.filter(function(n) {
               var st = (n.status || '').toLowerCase();
               var title = (n.title || '');
               var isDoctorPrescription = title.indexOf('New prescription from ') === 0;
-              return isDoctorPrescription && st !== 'acknowledged' && st !== 'done';
+              return isDoctorPrescription && st !== 'acknowledged' && st !== 'done' && st !== 'rejected' && st !== 'dispensed';
             });
             currentPage = 1;
             renderPage();
