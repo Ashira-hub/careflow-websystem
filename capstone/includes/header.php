@@ -257,7 +257,7 @@ try {
             <div style="display:flex;align-items:center;gap:16px;">
               <!-- Profile Avatar -->
               <div style="position:relative;">
-                <a href="/capstone/templates/doctor/doctor_profile.php" class="btn btn-ghost" style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border:none;border-radius:50%;background:#ffffff;transition:all 0.3s ease;overflow:hidden;box-shadow:0 0 0 3px #ffffff, 0 0 0 5px #0a5d39, 0 8px 18px rgba(0,0,0,0.10);padding:0;line-height:0;">
+                <a href="/capstone/templates/doctor/doctor_profile.php" class="btn btn-ghost" style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:none;border-radius:50%;background:#ffffff;transition:all 0.3s ease;overflow:hidden;box-shadow:0 0 0 3px #ffffff, 0 0 0 5px #0a5d39, 0 8px 18px rgba(0,0,0,0.10);padding:0;line-height:0;">
                   <?php $hdrAvatar = trim((string)($_SESSION['user']['avatar_uri'] ?? '')); ?>
                   <?php if ($hdrAvatar !== ''): ?>
                     <?php $hdrV = isset($_SESSION['user']['avatar_last_edited']) && $_SESSION['user']['avatar_last_edited'] !== '' ? ('?v=' . urlencode((string)$_SESSION['user']['avatar_last_edited'])) : ''; ?>
