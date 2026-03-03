@@ -20,9 +20,17 @@ try {
   $stmt->execute();
   $patientOptions = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-  // Fetch inventory items
-  $invStmt = $pdo->query("SELECT DISTINCT item_name FROM inventory WHERE item_name IS NOT NULL AND item_name <> '' ORDER BY item_name ASC");
-  $inventoryOptions = $invStmt->fetchAll(PDO::FETCH_COLUMN);
+  // Fetch inventory items - use brand_name or generic_name
+  $invStmt = $pdo->query("SELECT DISTINCT generic_name, brand_name FROM inventory WHERE (generic_name IS NOT NULL AND generic_name <> '') OR (brand_name IS NOT NULL AND brand_name <> '') ORDER BY brand_name ASC NULLS LAST, generic_name ASC");
+  $invResults = $invStmt->fetchAll(PDO::FETCH_ASSOC);
+  $inventoryOptions = [];
+  foreach ($invResults as $row) {
+    $name = $row['brand_name'] ?? $row['generic_name'] ?? '';
+    if ($name !== '' && !in_array($name, $inventoryOptions, true)) {
+      $inventoryOptions[] = $name;
+    }
+  }
+  sort($inventoryOptions);
 } catch (Throwable $e) {
   $patientOptions = [];
   $inventoryOptions = [];
