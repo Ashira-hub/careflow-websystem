@@ -19,52 +19,24 @@ try {
     $colStmt->execute();
     $existingCols = array_map('strtolower', array_map('strval', array_column($colStmt->fetchAll(PDO::FETCH_ASSOC), 'column_name')));
 
-    // Determine if we use 'date' or 'slot_date'
-    $hasDate = in_array('date', $existingCols, true);
-    $hasSlotDate = in_array('slot_date', $existingCols, true);
-
-    // Use appropriate column name
-    $dateCol = ($hasSlotDate || !$hasDate) ? 'slot_date' : 'date';
-
-    // If table doesn't exist, create it with slot_date
+    // If table doesn't exist, create it with the correct structure
     if (empty($existingCols)) {
         $pdo->exec("CREATE TABLE IF NOT EXISTS schedule_slots (
             id SERIAL PRIMARY KEY,
-            doctor_id BIGINT NOT NULL,
-            slot_date DATE NOT NULL,
-            start_time TIME NOT NULL,
-            end_time TIME NOT NULL,
+            doctor_user_id BIGINT NOT NULL,
+            doctor_name VARCHAR(255),
+            specialty VARCHAR(255),
+            date DATE NOT NULL,
+            time TIME,
+            start_time TIME,
+            end_time TIME,
             status VARCHAR(20) NOT NULL DEFAULT 'available',
             notes TEXT,
+            is_booked BOOLEAN DEFAULT FALSE,
+            booked_appointment_id BIGINT,
             created_at TIMESTAMPTZ DEFAULT now(),
             updated_at TIMESTAMPTZ DEFAULT now()
         )");
-        $dateCol = 'slot_date';
-    } else {
-        // Add missing columns to existing table
-        $requiredCols = [
-            'doctor_id' => 'BIGINT',
-            'start_time' => 'TIME',
-            'end_time' => 'TIME',
-            'status' => 'VARCHAR(20)',
-            'notes' => 'TEXT',
-            'created_at' => 'TIMESTAMPTZ DEFAULT now()',
-            'updated_at' => 'TIMESTAMPTZ DEFAULT now()'
-        ];
-
-        // Add slot_date if neither date column exists
-        if (!$hasDate && !$hasSlotDate) {
-            $requiredCols['slot_date'] = 'DATE';
-        }
-
-        foreach ($requiredCols as $colName => $colType) {
-            if (!in_array($colName, $existingCols, true)) {
-                try {
-                    $pdo->exec("ALTER TABLE schedule_slots ADD COLUMN IF NOT EXISTS {$colName} {$colType}");
-                } catch (Throwable $_) {
-                }
-            }
-        }
     }
 
     // Get doctor ID from session
@@ -72,6 +44,20 @@ try {
         session_start();
     }
     $doctorId = isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0;
+    $doctorName = isset($_SESSION['user']['full_name']) ? (string)$_SESSION['user']['full_name'] : '';
+
+    // Try to get specialty from doctor table if it exists
+    $specialty = '';
+    try {
+        $specStmt = $pdo->prepare("SELECT specialty FROM doctor WHERE user_id = :user_id LIMIT 1");
+        $specStmt->execute([':user_id' => $doctorId]);
+        $specRow = $specStmt->fetch(PDO::FETCH_ASSOC);
+        if ($specRow && !empty($specRow['specialty'])) {
+            $specialty = $specRow['specialty'];
+        }
+    } catch (Throwable $_) {
+        // Column or table may not exist, leave specialty empty
+    }
 
     if ($doctorId === 0) {
         http_response_code(401);
@@ -119,8 +105,8 @@ try {
 
             // Check for overlapping slots using correct column name
             $overlapSql = "SELECT id FROM schedule_slots 
-                WHERE doctor_id = :doctor_id 
-                AND " . ($dateCol === 'slot_date' ? 'slot_date' : '"date"') . " = :slot_date 
+                WHERE doctor_user_id = :doctor_user_id 
+                AND \"date\" = :slot_date 
                 AND status = 'available'
                 AND (
                     (start_time <= :start_time AND end_time > :start_time) OR
@@ -129,7 +115,7 @@ try {
                 )";
             $overlapStmt = $pdo->prepare($overlapSql);
             $overlapStmt->execute([
-                ':doctor_id' => $doctorId,
+                ':doctor_user_id' => $doctorId,
                 ':slot_date' => $slotDate,
                 ':start_time' => $startTime,
                 ':end_time' => $endTime
@@ -141,15 +127,16 @@ try {
                 exit;
             }
 
-            // Insert new schedule slot using correct column name
-            $insertSql = "INSERT INTO schedule_slots 
-                (doctor_id, " . ($dateCol === 'slot_date' ? 'slot_date' : '"date"') . ", start_time, end_time, status, notes, created_at, updated_at) 
-                VALUES (:doctor_id, :slot_date, :start_time, :end_time, :status, :notes, now(), now()) 
-                RETURNING id";
-            $insertStmt = $pdo->prepare($insertSql);
+            // Insert new schedule slot
+            $insertStmt = $pdo->prepare("INSERT INTO schedule_slots 
+                (doctor_user_id, doctor_name, specialty, \"date\", start_time, end_time, status, notes, is_booked, created_at, updated_at) 
+                VALUES (:doctor_user_id, :doctor_name, :specialty, :slot_date, :start_time, :end_time, :status, :notes, FALSE, now(), now()) 
+                RETURNING id");
 
             $insertStmt->execute([
-                ':doctor_id' => $doctorId,
+                ':doctor_user_id' => $doctorId,
+                ':doctor_name' => $doctorName,
+                ':specialty' => $specialty,
                 ':slot_date' => $slotDate,
                 ':start_time' => $startTime,
                 ':end_time' => $endTime,
@@ -163,12 +150,15 @@ try {
                 'ok' => true,
                 'data' => [
                     'id' => $newId,
-                    'doctor_id' => $doctorId,
+                    'doctor_user_id' => $doctorId,
+                    'doctor_name' => $doctorName,
+                    'specialty' => $specialty,
                     'date' => $slotDate,
                     'start_time' => $startTime,
                     'end_time' => $endTime,
                     'status' => $status,
-                    'notes' => $notes
+                    'notes' => $notes,
+                    'is_booked' => false
                 ]
             ]);
             break;
@@ -177,18 +167,16 @@ try {
             // Get schedule slots for the doctor
             $dateFilter = isset($_GET['date']) ? trim((string)$_GET['date']) : null;
 
-            $dateColRef = ($dateCol === 'slot_date' ? 'slot_date' : '"date"');
-
             if ($dateFilter && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFilter)) {
                 $stmt = $pdo->prepare("SELECT * FROM schedule_slots 
-                    WHERE doctor_id = :doctor_id AND " . $dateColRef . " = :slot_date 
+                    WHERE doctor_user_id = :doctor_user_id AND \"date\" = :slot_date 
                     ORDER BY start_time ASC");
-                $stmt->execute([':doctor_id' => $doctorId, ':slot_date' => $dateFilter]);
+                $stmt->execute([':doctor_user_id' => $doctorId, ':slot_date' => $dateFilter]);
             } else {
                 $stmt = $pdo->prepare("SELECT * FROM schedule_slots 
-                    WHERE doctor_id = :doctor_id 
-                    ORDER BY " . $dateColRef . " DESC, start_time ASC");
-                $stmt->execute([':doctor_id' => $doctorId]);
+                    WHERE doctor_user_id = :doctor_user_id 
+                    ORDER BY \"date\" DESC, start_time ASC");
+                $stmt->execute([':doctor_user_id' => $doctorId]);
             }
 
             $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -207,8 +195,8 @@ try {
             }
 
             // Verify ownership
-            $checkStmt = $pdo->prepare("SELECT id FROM schedule_slots WHERE id = :id AND doctor_id = :doctor_id");
-            $checkStmt->execute([':id' => $id, ':doctor_id' => $doctorId]);
+            $checkStmt = $pdo->prepare("SELECT id FROM schedule_slots WHERE id = :id AND doctor_user_id = :doctor_user_id");
+            $checkStmt->execute([':id' => $id, ':doctor_user_id' => $doctorId]);
             if (!$checkStmt->fetch()) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Not authorized to update this slot']);
@@ -219,7 +207,7 @@ try {
             $params = [':id' => $id];
 
             if (isset($input['date'])) {
-                $updates[] = ($dateCol === 'slot_date' ? 'slot_date' : '"date"') . " = :slot_date";
+                $updates[] = '"date" = :slot_date';
                 $params[':slot_date'] = trim((string)$input['date']);
             }
             if (isset($input['start_time'])) {
@@ -264,8 +252,8 @@ try {
             }
 
             // Verify ownership
-            $checkStmt = $pdo->prepare("SELECT id FROM schedule_slots WHERE id = :id AND doctor_id = :doctor_id");
-            $checkStmt->execute([':id' => $id, ':doctor_id' => $doctorId]);
+            $checkStmt = $pdo->prepare("SELECT id FROM schedule_slots WHERE id = :id AND doctor_user_id = :doctor_user_id");
+            $checkStmt->execute([':id' => $id, ':doctor_user_id' => $doctorId]);
             if (!$checkStmt->fetch()) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Not authorized to delete this slot']);
