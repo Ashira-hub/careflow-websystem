@@ -129,8 +129,8 @@ try {
 
             // Insert new schedule slot
             $insertStmt = $pdo->prepare("INSERT INTO schedule_slots 
-                (doctor_user_id, doctor_name, specialty, \"date\", start_time, end_time, status, notes, is_booked, created_at, updated_at) 
-                VALUES (:doctor_user_id, :doctor_name, :specialty, :slot_date, :start_time, :end_time, :status, :notes, FALSE, now(), now()) 
+                (doctor_user_id, doctor_name, specialty, \"date\", time, start_time, end_time, status, notes, is_booked, created_at, updated_at) 
+                VALUES (:doctor_user_id, :doctor_name, :specialty, :slot_date, :time_val, :start_time, :end_time, :status, :notes, FALSE, now(), now()) 
                 RETURNING id");
 
             $insertStmt->execute([
@@ -138,6 +138,7 @@ try {
                 ':doctor_name' => $doctorName,
                 ':specialty' => $specialty,
                 ':slot_date' => $slotDate,
+                ':time_val' => $startTime,
                 ':start_time' => $startTime,
                 ':end_time' => $endTime,
                 ':status' => $status,
