@@ -90,6 +90,30 @@ include __DIR__ . '/../../includes/header.php'; ?>
     var doctorId = <?php echo isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0; ?>;
     var doctorName = <?php echo json_encode((string)($_SESSION['user']['full_name'] ?? 'Doctor')); ?>;
 
+    function readStoreKey() {
+      return 'doctorReadNotificationIds:' + String(doctorId || '0');
+    }
+
+    function getReadIds() {
+      try {
+        var raw = localStorage.getItem(readStoreKey());
+        var arr = JSON.parse(raw || '[]');
+        return Array.isArray(arr) ? arr.map(String) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function addReadId(id) {
+      try {
+        var ids = getReadIds();
+        var sid = String(id || '');
+        if (!sid) return;
+        if (ids.indexOf(sid) === -1) ids.push(sid);
+        localStorage.setItem(readStoreKey(), JSON.stringify(ids));
+      } catch (e) {}
+    }
+
     function getAcceptedIds() {
       try {
         var raw = localStorage.getItem('doctorAcceptedAppointmentNotifIds');
@@ -207,6 +231,8 @@ include __DIR__ . '/../../includes/header.php'; ?>
           });
         }
 
+        var locallyReadIds = getReadIds();
+
         notifications = rawItems.map(function(n, idx) {
           var idVal = (n && (n.id != null ? n.id : n.notification_id)) != null ? (n.id != null ? n.id : n.notification_id) : (idx + 1);
           var titleVal = (n && (n.title != null ? n.title : n.subject)) != null ? (n.title != null ? n.title : n.subject) : 'Notification';
@@ -230,7 +256,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
             title: String(titleVal || ''),
             body: String(bodyVal || ''),
             time: String(timeVal || ''),
-            read: !!readVal,
+            read: !!readVal || locallyReadIds.indexOf(String(idVal)) !== -1,
             patientName: patientNameVal != null ? String(patientNameVal) : ''
           };
         });
@@ -289,6 +315,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
 
       // Mark as read when opened
       notification.read = true;
+      addReadId(notificationId);
 
       var apptControls = '';
       if (isAppointmentRequest(notification)) {

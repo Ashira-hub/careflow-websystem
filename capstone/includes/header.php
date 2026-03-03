@@ -358,6 +358,20 @@ try {
       var nBadge = document.getElementById('notifBadge');
       var doctorId = <?php echo isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0; ?>;
 
+      function doctorReadStoreKey() {
+        return 'doctorReadNotificationIds:' + String(doctorId || '0');
+      }
+
+      function getDoctorLocallyReadIds() {
+        try {
+          var raw = localStorage.getItem(doctorReadStoreKey());
+          var arr = JSON.parse(raw || '[]');
+          return Array.isArray(arr) ? arr.map(String) : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
       function detectRole() {
         var p = (location.pathname || '').toLowerCase();
         if (p.indexOf('/doctor/') !== -1) return 'doctor';
@@ -399,8 +413,16 @@ try {
           } else if (data && Array.isArray(data.notifications)) {
             notifications = data.notifications;
           }
+
+          var locallyReadIds = (role === 'doctor') ? getDoctorLocallyReadIds() : [];
           var unreadCount = notifications.filter(function(n) {
             var isRead = (n && (n.read != null ? n.read : (n.is_read != null ? n.is_read : n.isRead))) != null ? (n.read != null ? n.read : (n.is_read != null ? n.is_read : n.isRead)) : false;
+            if (role === 'doctor') {
+              var idVal = (n && (n.id != null ? n.id : n.notification_id)) != null ? (n.id != null ? n.id : n.notification_id) : '';
+              if (idVal != null && locallyReadIds.indexOf(String(idVal)) !== -1) {
+                return false;
+              }
+            }
             return !isRead;
           }).length;
 
