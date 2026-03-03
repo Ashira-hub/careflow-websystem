@@ -4,9 +4,12 @@ include __DIR__ . '/../../includes/header.php'; ?>
 require_once __DIR__ . '/../../config/db.php';
 $patientOptions = [];
 $selectedPatient = isset($_GET['patient']) ? (string)$_GET['patient'] : '';
+$inventoryOptions = [];
 try {
   $pdo = get_pdo();
   $uid = isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0;
+
+  // Fetch patients
   $stmt = $pdo->prepare("SELECT DISTINCT patient
                        FROM appointments
                        WHERE COALESCE(done, false) = false
@@ -16,8 +19,13 @@ try {
   $stmt->bindValue(':uid', $uid, PDO::PARAM_INT);
   $stmt->execute();
   $patientOptions = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+  // Fetch inventory items
+  $invStmt = $pdo->query("SELECT DISTINCT item_name FROM inventory WHERE item_name IS NOT NULL AND item_name <> '' ORDER BY item_name ASC");
+  $inventoryOptions = $invStmt->fetchAll(PDO::FETCH_COLUMN);
 } catch (Throwable $e) {
   $patientOptions = [];
+  $inventoryOptions = [];
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') === 'create_lab_test')) {
@@ -681,7 +689,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
               <div class="medicine-row" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:end;">
                 <div class="form-field" style="margin:0;">
                   <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.85rem;">Medicine</label>
-                  <input type="text" class="medicineInput" placeholder="Enter medicine" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+                  <select class="medicineInput" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';">
+                    <option value="">Select medicine</option>
+                    <?php foreach ($inventoryOptions as $med): ?>
+                      <option value="<?php echo htmlspecialchars($med); ?>"><?php echo htmlspecialchars($med); ?></option>
+                    <?php endforeach; ?>
+                  </select>
                 </div>
                 <div class="form-field" style="margin:0;">
                   <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.85rem;">Quantity</label>
