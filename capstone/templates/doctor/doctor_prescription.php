@@ -10,27 +10,54 @@ try {
   $uid = isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0;
 
   // Fetch patients
-  $stmt = $pdo->prepare("SELECT DISTINCT patient
-                       FROM appointments
-                       WHERE COALESCE(done, false) = false
-                         AND patient IS NOT NULL AND patient <> ''
-                         AND created_by_user_id = :uid
-                       ORDER BY patient ASC");
-  $stmt->bindValue(':uid', $uid, PDO::PARAM_INT);
-  $stmt->execute();
+  $apptColStmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'appointments'");
+  $apptColStmt->execute();
+  $apptCols = array_map('strtolower', array_map('strval', array_column($apptColStmt->fetchAll(PDO::FETCH_ASSOC), 'column_name')));
+
+  $where = [];
+  $params = [];
+  if (in_array('done', $apptCols, true)) {
+    $where[] = 'COALESCE(done, false) = false';
+  }
+  $where[] = "patient IS NOT NULL AND patient <> ''";
+
+  if (in_array('created_by_user_id', $apptCols, true) && $uid > 0) {
+    $where[] = 'created_by_user_id = :uid';
+    $params[':uid'] = $uid;
+  } elseif (in_array('created_by_name', $apptCols, true)) {
+    $doctorName = trim((string)($_SESSION['user']['full_name'] ?? ''));
+    if ($doctorName !== '') {
+      $where[] = 'created_by_name = :doctor_name';
+      $params[':doctor_name'] = $doctorName;
+    }
+  }
+
+  $sql = 'SELECT DISTINCT patient FROM appointments';
+  if (!empty($where)) {
+    $sql .= ' WHERE ' . implode(' AND ', $where);
+  }
+  $sql .= ' ORDER BY patient ASC';
+  $stmt = $pdo->prepare($sql);
+  $stmt->execute($params);
   $patientOptions = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
   // Fetch inventory items - use brand_name or generic_name
-  $invStmt = $pdo->query("SELECT DISTINCT generic_name, brand_name FROM inventory WHERE (generic_name IS NOT NULL AND generic_name <> '') OR (brand_name IS NOT NULL AND brand_name <> '') ORDER BY brand_name ASC NULLS LAST, generic_name ASC");
-  $invResults = $invStmt->fetchAll(PDO::FETCH_ASSOC);
   $inventoryOptions = [];
-  foreach ($invResults as $row) {
-    $name = $row['brand_name'] ?? $row['generic_name'] ?? '';
-    if ($name !== '' && !in_array($name, $inventoryOptions, true)) {
-      $inventoryOptions[] = $name;
-    }
+  $invColStmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'inventory'");
+  $invColStmt->execute();
+  $invCols = array_map('strtolower', array_map('strval', array_column($invColStmt->fetchAll(PDO::FETCH_ASSOC), 'column_name')));
+  $hasBrand = in_array('brand_name', $invCols, true);
+  $hasGeneric = in_array('generic_name', $invCols, true);
+  if ($hasBrand && $hasGeneric) {
+    $invStmt = $pdo->query("SELECT DISTINCT COALESCE(NULLIF(brand_name,''), NULLIF(generic_name,'')) AS name FROM inventory WHERE COALESCE(NULLIF(brand_name,''), NULLIF(generic_name,'')) IS NOT NULL ORDER BY name ASC");
+    $inventoryOptions = $invStmt->fetchAll(PDO::FETCH_COLUMN);
+  } elseif ($hasBrand) {
+    $invStmt = $pdo->query("SELECT DISTINCT brand_name AS name FROM inventory WHERE brand_name IS NOT NULL AND brand_name <> '' ORDER BY brand_name ASC");
+    $inventoryOptions = $invStmt->fetchAll(PDO::FETCH_COLUMN);
+  } elseif ($hasGeneric) {
+    $invStmt = $pdo->query("SELECT DISTINCT generic_name AS name FROM inventory WHERE generic_name IS NOT NULL AND generic_name <> '' ORDER BY generic_name ASC");
+    $inventoryOptions = $invStmt->fetchAll(PDO::FETCH_COLUMN);
   }
-  sort($inventoryOptions);
 } catch (Throwable $e) {
   $patientOptions = [];
   $inventoryOptions = [];
