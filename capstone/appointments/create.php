@@ -40,6 +40,16 @@ try {
   fail(500, 'DB unavailable');
 }
 
+try {
+  $pdo->exec("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS status TEXT");
+} catch (Throwable $e) {
+}
+
+try {
+  $pdo->exec("ALTER TABLE appointment ADD COLUMN IF NOT EXISTS status TEXT");
+} catch (Throwable $e) {
+}
+
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $id = isset($_GET['id']) ? intval($_GET['id']) : null;
 
@@ -73,7 +83,12 @@ if ($method === 'POST') {
   $time = isset($b['time']) ? trim((string)$b['time']) : (isset($b['appt_time']) ? trim((string)$b['appt_time']) : '');
   $notes = $b['notes'] ?? null;
   $done = isset($b['done']) ? (bool)$b['done'] : false;
+  $status = isset($b['status']) ? trim((string)$b['status']) : '';
   $created = isset($b['createdByName']) ? trim((string)$b['createdByName']) : (isset($_SESSION['user']['full_name']) ? (string)$_SESSION['user']['full_name'] : null);
+
+  if ($status === '') {
+    $status = $done ? 'done' : 'pending';
+  }
 
   // Normalize date (accept DD/MM/YYYY or YYYY-MM-DD)
   if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
@@ -97,9 +112,9 @@ if ($method === 'POST') {
   }
 
   try {
-    $stmt = $pdo->prepare('INSERT INTO appointments (patient, "date", "time", notes, done, created_by_name, created_by_user_id, created_at)
-      VALUES (:patient, :date, :time, :notes, :done, :created_by_name, :created_by_user_id, :created_at)
-      RETURNING id, patient, "date", "time", notes, done, created_by_name, created_at');
+    $stmt = $pdo->prepare('INSERT INTO appointments (patient, "date", "time", notes, done, status, created_by_name, created_by_user_id, created_at)
+      VALUES (:patient, :date, :time, :notes, :done, :status, :created_by_name, :created_by_user_id, :created_at)
+      RETURNING id, patient, "date", "time", notes, done, status, created_by_name, created_at');
 
     $done_pg = $done ? 'true' : 'false';
     $stmt->execute([
@@ -108,6 +123,7 @@ if ($method === 'POST') {
       ':time' => $time,
       ':notes' => ($notes === '' ? null : $notes),
       ':done' => $done_pg,
+      ':status' => ($status === '' ? null : $status),
       ':created_by_name' => $created,
       ':created_at' => date('Y-m-d H:i:s'),
       ':created_by_user_id' => $uid,
@@ -136,7 +152,6 @@ if ($method === 'POST') {
 
     // Mirror to simplified table: appointment
     try {
-      $status = $done ? 'done' : 'pending';
       $m = $pdo->prepare('INSERT INTO appointment (full_name, "date", "time", status, appointment_id)
         VALUES (:full_name, :date, :time, :status, :appointment_id)');
       $m->execute([
@@ -186,6 +201,7 @@ if ($method === 'PUT') {
   $time = array_key_exists('time', $b) ? $b['time'] : (array_key_exists('appt_time', $b) ? $b['appt_time'] : null);
   $notes = array_key_exists('notes', $b) ? $b['notes'] : null;
   $done = array_key_exists('done', $b) ? (bool)$b['done'] : null;
+  $status = array_key_exists('status', $b) ? $b['status'] : null;
   $created = array_key_exists('createdByName', $b) ? $b['createdByName'] : null;
 
   // Normalize date/time formats if provided
@@ -210,9 +226,10 @@ if ($method === 'PUT') {
           "time" = COALESCE(:time, "time"),
           notes = COALESCE(:notes, notes),
           done = COALESCE(:done, done),
+          status = COALESCE(:status, status),
           created_by_name = COALESCE(:created, created_by_name)
       WHERE id = :id AND created_by_user_id = :uid
-      RETURNING id, patient, "date", "time", notes, done, created_by_name, created_at');
+      RETURNING id, patient, "date", "time", notes, done, status, created_by_name, created_at');
 
     $done_pg = is_null($done) ? null : ($done ? 'true' : 'false');
     $stmt->execute([
@@ -221,6 +238,7 @@ if ($method === 'PUT') {
       ':time' => $time,
       ':notes' => $notes,
       ':done' => $done_pg,
+      ':status' => $status,
       ':created' => $created,
       ':id' => $id,
       ':uid' => $uid,
@@ -231,7 +249,7 @@ if ($method === 'PUT') {
 
     // Mirror update
     try {
-      $status = $updated['done'] ? 'done' : 'pending';
+      $mirrorStatus = isset($updated['status']) && $updated['status'] !== '' ? $updated['status'] : ($updated['done'] ? 'done' : 'pending');
       $m = $pdo->prepare('UPDATE appointment
         SET full_name = COALESCE(:full_name, full_name),
             "date" = COALESCE(:date, "date"),
@@ -242,7 +260,7 @@ if ($method === 'PUT') {
         ':full_name' => $patient,
         ':date' => $date,
         ':time' => $time,
-        ':status' => $status,
+        ':status' => $mirrorStatus,
         ':appointment_id' => $updated['id'],
       ]);
     } catch (Throwable $e) { /* ignore mirror errors */

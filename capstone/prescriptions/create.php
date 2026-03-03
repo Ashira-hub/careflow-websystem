@@ -39,6 +39,7 @@ $patient_name = isset($b['patient_name']) ? trim((string)$b['patient_name']) : '
 $medicine = isset($b['medicine']) ? trim((string)$b['medicine']) : '';
 $quantity = isset($b['quantity']) ? trim((string)$b['quantity']) : '';
 $dosage_strength = isset($b['dosage_strength']) ? trim((string)$b['dosage_strength']) : '';
+$instruction = isset($b['instruction']) ? trim((string)$b['instruction']) : '';
 $description = isset($b['description']) ? trim((string)$b['description']) : '';
 
 // Validate required fields
@@ -66,19 +67,25 @@ if (!empty($errors)) {
 }
 
 try {
+  try {
+    $pdo->exec('ALTER TABLE prescription ADD COLUMN IF NOT EXISTS instruction TEXT');
+  } catch (Throwable $e) {
+  }
+
   // Prefer inserting ownership if the column exists; if not, fall back
   $tryWithOwner = true;
   try {
     $stmt = $pdo->prepare('INSERT INTO prescription 
-      (doctor_name, patient_name, medicine, quantity, dosage_strength, description, created_at, created_by_user_id) 
-      VALUES (:doctor_name, :patient_name, :medicine, :quantity, :dosage_strength, :description, NOW(), :uid) 
-      RETURNING id, doctor_name, patient_name, medicine, quantity, dosage_strength, description, created_at');
+      (doctor_name, patient_name, medicine, quantity, dosage_strength, instruction, description, created_at, created_by_user_id) 
+      VALUES (:doctor_name, :patient_name, :medicine, :quantity, :dosage_strength, :instruction, :description, NOW(), :uid) 
+      RETURNING id, doctor_name, patient_name, medicine, quantity, dosage_strength, instruction, description, created_at');
     $stmt->execute([
       ':doctor_name' => $doctor_name,
       ':patient_name' => $patient_name,
       ':medicine' => $medicine,
       ':quantity' => $quantity,
       ':dosage_strength' => $dosage_strength,
+      ':instruction' => ($instruction === '' ? null : $instruction),
       ':description' => $description ?: null,
       ':uid' => $uid,
     ]);
@@ -86,18 +93,38 @@ try {
     $tryWithOwner = false;
   }
   if (!$tryWithOwner) {
-    $stmt = $pdo->prepare('INSERT INTO prescription 
-      (doctor_name, patient_name, medicine, quantity, dosage_strength, description, created_at) 
-      VALUES (:doctor_name, :patient_name, :medicine, :quantity, :dosage_strength, :description, NOW()) 
-      RETURNING id, doctor_name, patient_name, medicine, quantity, dosage_strength, description, created_at');
-    $stmt->execute([
-      ':doctor_name' => $doctor_name,
-      ':patient_name' => $patient_name,
-      ':medicine' => $medicine,
-      ':quantity' => $quantity,
-      ':dosage_strength' => $dosage_strength,
-      ':description' => $description ?: null,
-    ]);
+    $tryWithInstruction = true;
+    try {
+      $stmt = $pdo->prepare('INSERT INTO prescription 
+        (doctor_name, patient_name, medicine, quantity, dosage_strength, instruction, description, created_at) 
+        VALUES (:doctor_name, :patient_name, :medicine, :quantity, :dosage_strength, :instruction, :description, NOW()) 
+        RETURNING id, doctor_name, patient_name, medicine, quantity, dosage_strength, instruction, description, created_at');
+      $stmt->execute([
+        ':doctor_name' => $doctor_name,
+        ':patient_name' => $patient_name,
+        ':medicine' => $medicine,
+        ':quantity' => $quantity,
+        ':dosage_strength' => $dosage_strength,
+        ':instruction' => ($instruction === '' ? null : $instruction),
+        ':description' => $description ?: null,
+      ]);
+    } catch (Throwable $e) {
+      $tryWithInstruction = false;
+    }
+    if (!$tryWithInstruction) {
+      $stmt = $pdo->prepare('INSERT INTO prescription 
+        (doctor_name, patient_name, medicine, quantity, dosage_strength, description, created_at) 
+        VALUES (:doctor_name, :patient_name, :medicine, :quantity, :dosage_strength, :description, NOW()) 
+        RETURNING id, doctor_name, patient_name, medicine, quantity, dosage_strength, description, created_at');
+      $stmt->execute([
+        ':doctor_name' => $doctor_name,
+        ':patient_name' => $patient_name,
+        ':medicine' => $medicine,
+        ':quantity' => $quantity,
+        ':dosage_strength' => $dosage_strength,
+        ':description' => $description ?: null,
+      ]);
+    }
   }
 
   $prescription = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -107,19 +134,41 @@ try {
     $createdAt = isset($prescription['created_at']) ? (string)$prescription['created_at'] : date('Y-m-d H:i:s');
     $datePart = substr($createdAt, 0, 10);
     $timePart = substr($createdAt, 11, 8);
-    $pr = $pdo->prepare('INSERT INTO patient_records (patient, "date", "time", notes, created_at, doctor, medicine, dosage, created_by_user_id)
-      VALUES (:patient, :date, :time, :notes, :created_at, :doctor, :medicine, :dosage, :uid)');
-    $pr->execute([
-      ':patient' => $patient_name,
-      ':date' => $datePart,
-      ':time' => $timePart,
-      ':notes' => ($description === '' ? null : $description),
-      ':created_at' => $createdAt,
-      ':doctor' => $doctor_name,
-      ':medicine' => $medicine,
-      ':dosage' => $dosage_strength,
-      ':uid' => $uid,
-    ]);
+    $prColStmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'patient_records'");
+    $prColStmt->execute();
+    $prCols = array_map('strtolower', array_map('strval', array_column($prColStmt->fetchAll(PDO::FETCH_ASSOC), 'column_name')));
+    $hasInstruction = in_array('instruction', $prCols, true);
+
+    if ($hasInstruction) {
+      $pr = $pdo->prepare('INSERT INTO patient_records (patient, "date", "time", notes, created_at, doctor, medicine, dosage, instruction, created_by_user_id)
+        VALUES (:patient, :date, :time, :notes, :created_at, :doctor, :medicine, :dosage, :instruction, :uid)');
+      $pr->execute([
+        ':patient' => $patient_name,
+        ':date' => $datePart,
+        ':time' => $timePart,
+        ':notes' => ($description === '' ? null : $description),
+        ':created_at' => $createdAt,
+        ':doctor' => $doctor_name,
+        ':medicine' => $medicine,
+        ':dosage' => $dosage_strength,
+        ':instruction' => ($instruction === '' ? null : $instruction),
+        ':uid' => $uid,
+      ]);
+    } else {
+      $pr = $pdo->prepare('INSERT INTO patient_records (patient, "date", "time", notes, created_at, doctor, medicine, dosage, created_by_user_id)
+        VALUES (:patient, :date, :time, :notes, :created_at, :doctor, :medicine, :dosage, :uid)');
+      $pr->execute([
+        ':patient' => $patient_name,
+        ':date' => $datePart,
+        ':time' => $timePart,
+        ':notes' => ($description === '' ? null : $description),
+        ':created_at' => $createdAt,
+        ':doctor' => $doctor_name,
+        ':medicine' => $medicine,
+        ':dosage' => $dosage_strength,
+        ':uid' => $uid,
+      ]);
+    }
   } catch (Throwable $e) { /* ignore patient_records errors */
   }
 

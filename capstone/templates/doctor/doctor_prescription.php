@@ -411,13 +411,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
               var medEl = row.querySelector('.medicineInput');
               var qtyEl = row.querySelector('.medicineQty');
               var doseEl = row.querySelector('.medicineDose');
+              var insEl = row.querySelector('.medicineInstruction');
               return {
                 medicine: (medEl && medEl.value) ? String(medEl.value) : '',
                 qty: (qtyEl && qtyEl.value) ? String(qtyEl.value) : '',
-                dose: (doseEl && doseEl.value) ? String(doseEl.value) : ''
+                dose: (doseEl && doseEl.value) ? String(doseEl.value) : '',
+                instruction: (insEl && insEl.value) ? String(insEl.value) : ''
               };
             }).filter(function(it) {
-              return (String(it.medicine || '').trim() !== '' || String(it.qty || '').trim() !== '' || String(it.dose || '').trim() !== '');
+              return (String(it.medicine || '').trim() !== '' || String(it.qty || '').trim() !== '' || String(it.dose || '').trim() !== '' || String(it.instruction || '').trim() !== '');
             });
 
             if (!doctor || !patient || items.length === 0) {
@@ -443,9 +445,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
                 var medEl = first.querySelector('.medicineInput');
                 var qtyEl = first.querySelector('.medicineQty');
                 var doseEl = first.querySelector('.medicineDose');
+                var insEl = first.querySelector('.medicineInstruction');
                 if (medEl) medEl.value = '';
                 if (qtyEl) qtyEl.value = '';
                 if (doseEl) doseEl.value = '';
+                if (insEl) insEl.value = '';
               }
 
               var removeBtns = Array.prototype.slice.call(wrap.querySelectorAll('.btnRemoveMedicine'));
@@ -454,11 +458,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
               });
             }
 
-            function buildBody(patientName, medicine, dose, qty, prescriptionId) {
+            function buildBody(patientName, medicine, dose, qty, instruction, prescriptionId) {
               var parts = [];
               if (patientName) parts.push('Patient: ' + patientName);
               if (medicine) parts.push('Medicine: ' + medicine + (dose ? (' ' + dose) : ''));
               if (qty) parts.push('Qty: ' + qty);
+              if (instruction) parts.push('Instruction: ' + instruction);
               if (desc) parts.push(desc);
               if (prescriptionId !== null && prescriptionId !== undefined) {
                 parts.push('PrescriptionID: ' + prescriptionId);
@@ -478,6 +483,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
                 var medicine = String(items[k].medicine || '').trim();
                 var qty = String(items[k].qty || '').trim();
                 var dose = String(items[k].dose || '').trim();
+                var instruction = String(items[k].instruction || '').trim();
 
                 // Save prescription to database
                 var dbRes = await fetch('/capstone/prescriptions/create.php', {
@@ -491,6 +497,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
                     medicine: medicine,
                     quantity: qty,
                     dosage_strength: dose,
+                    instruction: instruction,
                     description: desc
                   })
                 });
@@ -505,7 +512,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
                   return null;
                 });
                 var prescriptionId = dbJson && dbJson.data && dbJson.data.id ? dbJson.data.id : null;
-                var body = buildBody(patient, medicine, dose, qty, prescriptionId);
+                var body = buildBody(patient, medicine, dose, qty, instruction, prescriptionId);
 
                 // Notify pharmacy, include prescription_id and doctor_id so backend can update DB status and doctor notifications
                 var notifRes = await fetch('/capstone/notifications/pharmacy.php', {
@@ -721,7 +728,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
           <div class="form-field">
             <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Medicines</label>
             <div id="medicineRows" style="display:grid;gap:12px;">
-              <div class="medicine-row" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:end;">
+              <div class="medicine-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:12px;align-items:end;">
                 <div class="form-field" style="margin:0;">
                   <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.85rem;">Medicine</label>
                   <select class="medicineInput" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';">
@@ -738,6 +745,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
                 <div class="form-field" style="margin:0;">
                   <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.85rem;">Dosage</label>
                   <input type="text" class="medicineDose" placeholder="Dosage" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+                </div>
+                <div class="form-field" style="margin:0;">
+                  <label style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.85rem;">Instruction</label>
+                  <input type="text" class="medicineInstruction" placeholder="Instruction" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;">
                   <button type="button" class="btnRemoveMedicine" style="display:none;padding:10px 12px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;font-weight:700;cursor:pointer;color:#ef4444;">Remove</button>
@@ -780,9 +791,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
                   var medEl = clone.querySelector('.medicineInput');
                   var qtyEl = clone.querySelector('.medicineQty');
                   var doseEl = clone.querySelector('.medicineDose');
+                  var insEl = clone.querySelector('.medicineInstruction');
                   if (medEl) medEl.value = '';
                   if (qtyEl) qtyEl.value = '';
                   if (doseEl) doseEl.value = '';
+                  if (insEl) insEl.value = '';
                   wrap.appendChild(clone);
                   wireRemove(clone);
                   updateRemoveButtons();

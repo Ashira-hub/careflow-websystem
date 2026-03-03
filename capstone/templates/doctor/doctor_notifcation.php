@@ -448,6 +448,7 @@ include __DIR__ . '/../../includes/header.php'; ?>
             time: time,
             notes: notes,
             done: false,
+            status: 'accepted',
             createdByName: doctorName
           })
         });
