@@ -41,7 +41,7 @@ try {
                          FROM appointments
                          WHERE COALESCE(done, false) = false
                            AND (created_by_user_id = :uid)
-                         ORDER BY \"date\" ASC, \"time\" ASC
+                         ORDER BY \"date\" DESC, \"time\" DESC
                          LIMIT :limit OFFSET :offset");
   $stmt->bindValue(':uid', $userId, PDO::PARAM_INT);
   $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
@@ -179,7 +179,7 @@ try {
 
 <div id="apptModal" style="display:none;position:fixed;inset:0;z-index:1000;">
   <div data-backdrop style="position:absolute;inset:0;background:rgba(0,0,0,0.45);"></div>
-  <div role="dialog" aria-modal="true" style="position:relative;max-width:600px;margin:2vh auto;background:#fff;border-radius:20px;box-shadow:0 25px 50px rgba(0,0,0,0.25);overflow:hidden;min-height:fit-content;">
+  <div role="dialog" aria-modal="true" style="position:relative;max-width:700px;margin:2vh auto;background:#fff;border-radius:20px;box-shadow:0 25px 50px rgba(0,0,0,0.25);overflow:hidden;min-height:fit-content;">
     <div style="background:linear-gradient(135deg,#0a5d39,#10b981);color:#fff;padding:24px 28px;border-radius:20px 20px 0 0;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div>
@@ -193,30 +193,77 @@ try {
         </button>
       </div>
     </div>
-    <form id="apptForm" action="#" method="post">
-      <div style="padding:28px;display:grid;gap:20px;">
-        <div>
-          <label for="appt_patient" class="muted-small" style="display:block;margin-bottom:6px;">Patient Name</label>
-          <input id="appt_patient" name="patient" type="text" class="input" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;" required />
+
+    <!-- Tab Buttons -->
+    <div style="display:flex;gap:10px;padding:20px 28px 0;border-bottom:1px solid #e5e7eb;background:#f8fafc;">
+      <button type="button" id="btnShowAppt" style="flex:1;padding:12px 14px;border-radius:12px;border:1px solid #e2e8f0;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#0a5d39,#10b981);color:#fff;">Appointment</button>
+      <button type="button" id="btnShowSchedule" style="flex:1;padding:12px 14px;border-radius:12px;border:1px solid #e2e8f0;font-weight:700;cursor:pointer;background:#e2e8f0;color:#0f172a;">Schedule Slot</button>
+    </div>
+
+    <!-- Appointment Section -->
+    <div id="apptSection">
+      <form id="apptForm" action="#" method="post">
+        <div style="padding:28px;display:grid;gap:20px;">
+          <div>
+            <label for="appt_patient" class="muted-small" style="display:block;margin-bottom:6px;">Patient Name</label>
+            <input id="appt_patient" name="patient" type="text" class="input" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;" required />
+          </div>
+          <div>
+            <label for="appt_date" class="muted-small" style="display:block;margin-bottom:6px;">Date</label>
+            <input id="appt_date" name="date" type="date" class="input" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;" required />
+          </div>
+          <div>
+            <label for="appt_time" class="muted-small" style="display:block;margin-bottom:6px;">Time</label>
+            <input id="appt_time" name="time" type="time" class="input" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;" required />
+          </div>
+          <div>
+            <label for="appt_reason" class="muted-small" style="display:block;margin-bottom:6px;">Notes</label>
+            <textarea id="appt_reason" name="reason" rows="3" class="input" placeholder="Optional details" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;resize:vertical;"></textarea>
+          </div>
         </div>
-        <div>
-          <label for="appt_date" class="muted-small" style="display:block;margin-bottom:6px;">Date</label>
-          <input id="appt_date" name="date" type="date" class="input" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;" required />
+        <div style="display:flex;justify-content:flex-end;gap:12px;padding:20px 28px;border-top:1px solid #e5e7eb;background:linear-gradient(135deg,#f8fafc,#f1f5f9);">
+          <button type="button" class="btn btn-outline" id="cancelApptModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submitApptBtn">Create Appointment</button>
         </div>
-        <div>
-          <label for="appt_time" class="muted-small" style="display:block;margin-bottom:6px;">Time</label>
-          <input id="appt_time" name="time" type="time" class="input" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;" required />
+      </form>
+    </div>
+
+    <!-- Schedule Slot Section -->
+    <div id="scheduleSection" style="display:none;">
+      <form id="scheduleForm" action="#" method="post">
+        <div style="padding:28px;display:grid;gap:20px;">
+          <div>
+            <label for="slot_date" class="muted-small" style="display:block;margin-bottom:6px;">Date</label>
+            <input id="slot_date" name="slot_date" type="date" class="input" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;" required />
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+            <div>
+              <label for="slot_start_time" class="muted-small" style="display:block;margin-bottom:6px;">Start Time</label>
+              <input id="slot_start_time" name="slot_start_time" type="time" class="input" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;" required />
+            </div>
+            <div>
+              <label for="slot_end_time" class="muted-small" style="display:block;margin-bottom:6px;">End Time</label>
+              <input id="slot_end_time" name="slot_end_time" type="time" class="input" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;" required />
+            </div>
+          </div>
+          <div>
+            <label for="slot_status" class="muted-small" style="display:block;margin-bottom:6px;">Status</label>
+            <select id="slot_status" name="slot_status" class="input" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;" required>
+              <option value="available">Available</option>
+              <option value="not_available">Not Available</option>
+            </select>
+          </div>
+          <div>
+            <label for="slot_notes" class="muted-small" style="display:block;margin-bottom:6px;">Notes</label>
+            <textarea id="slot_notes" name="slot_notes" rows="3" class="input" placeholder="Optional details" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;resize:vertical;"></textarea>
+          </div>
         </div>
-        <div>
-          <label for="appt_reason" class="muted-small" style="display:block;margin-bottom:6px;">Notes</label>
-          <textarea id="appt_reason" name="reason" rows="3" class="input" placeholder="Optional details" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;resize:vertical;"></textarea>
+        <div style="display:flex;justify-content:flex-end;gap:12px;padding:20px 28px;border-top:1px solid #e5e7eb;background:linear-gradient(135deg,#f8fafc,#f1f5f9);">
+          <button type="button" class="btn btn-outline" id="cancelScheduleModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submitScheduleBtn">Save Schedule Slot</button>
         </div>
-      </div>
-      <div style="display:flex;justify-content:flex-end;gap:12px;padding:20px 28px;border-top:1px solid #e5e7eb;background:linear-gradient(135deg,#f8fafc,#f1f5f9);">
-        <button type="button" class="btn btn-outline" id="cancelApptModal">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="submitApptBtn">Create Appointment</button>
-      </div>
-    </form>
+      </form>
+    </div>
   </div>
   <button type="button" id="srCloseBackdropAppt" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">Close</button>
   <span aria-hidden="true" id="srFocusTrapAppt" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"></span>
@@ -226,6 +273,7 @@ try {
       var modal = document.getElementById('apptModal');
       var closeBtn = document.getElementById('closeApptModal');
       var cancelBtn = document.getElementById('cancelApptModal');
+      var cancelScheduleBtn = document.getElementById('cancelScheduleModal');
       var backdrop = modal.querySelector('[data-backdrop]');
       var modalTitle = document.getElementById('apptModalTitle');
       var submitBtn = document.getElementById('submitApptBtn');
@@ -239,6 +287,36 @@ try {
         rCustom = null,
         rTitle = null;
       var currentReminder = null;
+
+      // Tab switching elements
+      var btnShowAppt = document.getElementById('btnShowAppt');
+      var btnShowSchedule = document.getElementById('btnShowSchedule');
+      var apptSection = document.getElementById('apptSection');
+      var scheduleSection = document.getElementById('scheduleSection');
+
+      function setActiveTab(which) {
+        if (apptSection) apptSection.style.display = which === 'appt' ? '' : 'none';
+        if (scheduleSection) scheduleSection.style.display = which === 'schedule' ? '' : 'none';
+        if (btnShowAppt) {
+          btnShowAppt.style.background = which === 'appt' ? 'linear-gradient(135deg,#0a5d39,#10b981)' : '#e2e8f0';
+          btnShowAppt.style.color = which === 'appt' ? '#fff' : '#0f172a';
+        }
+        if (btnShowSchedule) {
+          btnShowSchedule.style.background = which === 'schedule' ? 'linear-gradient(135deg,#0a5d39,#10b981)' : '#e2e8f0';
+          btnShowSchedule.style.color = which === 'schedule' ? '#fff' : '#0f172a';
+        }
+      }
+
+      if (btnShowAppt) {
+        btnShowAppt.addEventListener('click', function() {
+          setActiveTab('appt');
+        });
+      }
+      if (btnShowSchedule) {
+        btnShowSchedule.addEventListener('click', function() {
+          setActiveTab('schedule');
+        });
+      }
 
       function ensureReminderBindings() {
         if (rModal) return; // already bound
@@ -318,6 +396,8 @@ try {
       function open() {
         modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
+        // Reset to appointment tab when opening modal
+        setActiveTab('appt');
       }
 
       function close() {
@@ -447,6 +527,11 @@ try {
           close();
         });
       }
+      if (cancelScheduleBtn) {
+        cancelScheduleBtn.addEventListener('click', function() {
+          close();
+        });
+      }
       if (backdrop) {
         backdrop.addEventListener('click', function() {
           close();
@@ -536,6 +621,52 @@ try {
             }
             form.reset();
             resetFormMode();
+            close();
+          } catch (err) {
+            alert('Error: ' + err.message);
+          }
+        });
+      }
+
+      // Schedule Slot form submission
+      var scheduleForm = document.getElementById('scheduleForm');
+      if (scheduleForm) {
+        scheduleForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          var slotDate = (document.getElementById('slot_date') || {}).value || '';
+          var slotStartTime = (document.getElementById('slot_start_time') || {}).value || '';
+          var slotEndTime = (document.getElementById('slot_end_time') || {}).value || '';
+          var slotStatus = (document.getElementById('slot_status') || {}).value || '';
+          var slotNotes = (document.getElementById('slot_notes') || {}).value || '';
+
+          if (!slotDate || !slotStartTime || !slotEndTime || !slotStatus) {
+            alert('Please fill in all required fields: Date, Start Time, End Time, and Status.');
+            return;
+          }
+
+          try {
+            // Save schedule slot to database
+            var res = await fetch('/capstone/appointments/schedule_slots.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                date: slotDate,
+                start_time: slotStartTime,
+                end_time: slotEndTime,
+                status: slotStatus,
+                notes: slotNotes
+              })
+            });
+            if (!res.ok) {
+              var text = await res.text().catch(function() {
+                return '';
+              });
+              throw new Error(text || 'Failed to save schedule slot');
+            }
+            alert('Schedule slot saved successfully!');
+            scheduleForm.reset();
             close();
           } catch (err) {
             alert('Error: ' + err.message);
@@ -689,7 +820,8 @@ try {
               cache: 'no-store'
             });
           } catch (e) {
-            /* silent */ }
+            /* silent */
+          }
         }
         // initial and every 15s
         poll();
