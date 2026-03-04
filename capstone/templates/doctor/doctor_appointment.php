@@ -30,6 +30,7 @@ $cells = 42; // 6 weeks grid
 // Load appointments from PostgreSQL
 require_once __DIR__ . '/../../config/db.php';
 $appointments = [];
+$slotDates = [];
 try {
   $pdo = get_pdo();
   // Pagination: 'ap' page number (1..1000), 10 items per page
@@ -37,19 +38,40 @@ try {
   $perPage = 6;
   $offset = ($ap - 1) * $perPage;
   $userId = isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0;
-  $stmt = $pdo->prepare("SELECT id, patient, \"date\", \"time\", notes, done
+
+  // Best-effort: ensure status column exists
+  try {
+    $pdo->exec("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS status TEXT");
+  } catch (Throwable $_) {
+  }
+
+  $stmt = $pdo->prepare("SELECT id, patient, \"date\", \"time\", notes, done, status
                          FROM appointments
                          WHERE COALESCE(done, false) = false
                            AND (created_by_user_id = :uid)
-                         ORDER BY \"date\" DESC, \"time\" DESC
+                         ORDER BY (CASE WHEN COALESCE(status, '') = 'accepted' THEN 1 ELSE 0 END) DESC,
+                                  \"date\" DESC,
+                                  \"time\" DESC
                          LIMIT :limit OFFSET :offset");
   $stmt->bindValue(':uid', $userId, PDO::PARAM_INT);
   $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
   $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
   $stmt->execute();
   $appointments = $stmt->fetchAll();
+
+  // Calendar: mark days that have schedule slots in this month
+  try {
+    $monthStart = date('Y-m-01', $firstTs);
+    $monthEnd = date('Y-m-t', $firstTs);
+    $slotStmt = $pdo->prepare('SELECT DISTINCT "date" FROM schedule_slots WHERE doctor_user_id = :uid AND "date" >= :d1 AND "date" <= :d2');
+    $slotStmt->execute([':uid' => $userId, ':d1' => $monthStart, ':d2' => $monthEnd]);
+    $slotDates = array_map('strval', $slotStmt->fetchAll(PDO::FETCH_COLUMN));
+  } catch (Throwable $_) {
+    $slotDates = [];
+  }
 } catch (Throwable $e) {
   $appointments = [];
+  $slotDates = [];
 }
 ?>
 
@@ -101,11 +123,26 @@ try {
           }
           $isToday = (!$muted && $y === $todayY && $m === $todayM && $display === $todayD);
           $classes = 'calendar-cell' . ($muted ? ' muted' : '') . ($isToday ? ' active' : '');
+          $cellDate = !$muted ? sprintf('%04d-%02d-%02d', $y, $m, $display) : '';
+          $hasSlots = (!$muted && $cellDate !== '' && in_array($cellDate, $slotDates, true));
         ?>
-          <div class="<?php echo $classes; ?>">
-            <div><?php echo $display; ?></div>
+          <div class="<?php echo $classes; ?>" <?php echo !$muted ? 'data-date="' . htmlspecialchars($cellDate, ENT_QUOTES) . '"' : ''; ?> style="position:relative;">
+            <div style="position:relative;display:inline-block;">
+              <?php echo $display; ?>
+              <?php if ($hasSlots): ?>
+                <span style="position:absolute;left:50%;transform:translateX(-50%);bottom:-6px;width:6px;height:6px;border-radius:999px;background:#22c55e;"></span>
+              <?php endif; ?>
+            </div>
           </div>
         <?php endfor; ?>
+      </div>
+
+      <div id="slotDayPanel" style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="font-weight:800;color:#0f172a;">Schedule Slots</div>
+          <div id="slotDayLabel" class="muted-small" style="color:#64748b;"></div>
+        </div>
+        <div id="slotDayList" class="muted" style="margin-top:10px;color:#64748b;">Click a day to view available schedule slots.</div>
       </div>
     </section>
 
@@ -287,6 +324,65 @@ try {
         rCustom = null,
         rTitle = null;
       var currentReminder = null;
+
+      var slotDayLabel = document.getElementById('slotDayLabel');
+      var slotDayList = document.getElementById('slotDayList');
+
+      function escapeHtml(s) {
+        return String(s || '').replace(/[&<>\"]/g, function(c) {
+          return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;'
+          } [c];
+        });
+      }
+
+      async function loadSlotsForDate(dateStr) {
+        if (!slotDayList) return;
+        if (!dateStr) return;
+        if (slotDayLabel) slotDayLabel.textContent = dateStr;
+        slotDayList.textContent = 'Loading...';
+        try {
+          var res = await fetch('/capstone/appointments/schedule_slots.php?date=' + encodeURIComponent(dateStr), {
+            cache: 'no-store'
+          });
+          if (!res.ok) throw new Error('Failed to load schedule slots');
+          var json = await res.json();
+          var slots = (json && json.data && Array.isArray(json.data)) ? json.data : [];
+          if (!slots.length) {
+            slotDayList.textContent = 'No schedule slots for this day.';
+            return;
+          }
+          slotDayList.innerHTML = slots.map(function(s) {
+            var st = (s && s.start_time) ? String(s.start_time).substring(0, 5) : '';
+            var et = (s && s.end_time) ? String(s.end_time).substring(0, 5) : '';
+            var status = (s && s.status) ? String(s.status) : '';
+            var notes = (s && s.notes) ? String(s.notes) : '';
+            var badgeBg = (status === 'available') ? '#dcfce7' : '#fee2e2';
+            var badgeFg = (status === 'available') ? '#166534' : '#991b1b';
+            return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;margin-top:10px;">' +
+              '<div style="min-width:0;">' +
+              '<div style="font-weight:700;color:#0f172a;">' + escapeHtml(st + (et ? (' - ' + et) : '')) + '</div>' +
+              (notes ? ('<div class="muted-small" style="color:#64748b;margin-top:2px;">' + escapeHtml(notes) + '</div>') : '') +
+              '</div>' +
+              '<div style="white-space:nowrap;padding:4px 10px;border-radius:999px;background:' + badgeBg + ';color:' + badgeFg + ';font-weight:800;font-size:.78rem;">' + escapeHtml(status) + '</div>' +
+              '</div>';
+          }).join('');
+        } catch (e) {
+          slotDayList.textContent = 'Unable to load schedule slots.';
+        }
+      }
+
+      document.addEventListener('click', function(e) {
+        var cell = e.target.closest('.calendar-cell');
+        if (!cell) return;
+        if (cell.classList.contains('muted')) return;
+        var d = cell.getAttribute('data-date') || '';
+        if (!d) return;
+        loadSlotsForDate(d);
+      });
 
       // Tab switching elements
       var btnShowAppt = document.getElementById('btnShowAppt');
