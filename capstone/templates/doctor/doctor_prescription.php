@@ -235,18 +235,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
           var testOptions = [
             'Complete Blood Count (CBC)',
             'Urinalysis',
-            'Fasting Blood Sugar (FBS)',
-            'Random Blood Sugar (RBS)',
+            'Fasting Blood Sugar',
             'Lipid Profile',
-            'Liver Function Test (LFT)',
-            'Kidney Function Test (KFT)',
-            'Creatinine',
-            'Blood Urea Nitrogen (BUN)',
-            'Electrolytes (Na/K/Cl)',
-            'Hemoglobin A1c (HbA1c)',
-            'Pregnancy Test',
-            'COVID-19 Antigen',
-            'Dengue NS1/IgM/IgG'
+            'Liver Function Test',
+            'Kidney Function Test',
+            'Thyroid Panel',
+            'Electrolyte Panel',
+            'HbA1c'
           ];
 
           function escapeHtml(s) {
@@ -846,53 +841,40 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
           </div>
 
           <div class="form-field">
-            <label for="lab_test_name" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Test Name</label>
-            <div id="labTestRows" style="display:grid;gap:12px;">
-              <div class="lab-test-row" style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
-                <div class="labTestNameWrap" style="position:relative;">
-                  <input type="text" class="labTestNameInput" placeholder="Select or type test name" autocomplete="off" style="width:100%;padding:12px 40px 12px 16px;border:2px solid #e2e8f0;border-radius:12px;background:#f8fafc;transition:all 0.2s ease;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
-                  <div class="labTestNameChevron" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:auto;cursor:default;color:#64748b;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
+            <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:end;">
+              <div>
+                <label for="lab_test_name" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Test Name</label>
+                <div id="labTestRows" style="display:grid;gap:12px;">
+                  <div class="lab-test-row" style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+                    <div class="labTestNameWrap" style="position:relative;">
+                      <input type="text" class="labTestNameInput" placeholder="Select or type test name" autocomplete="off" style="width:100%;padding:12px 40px 12px 16px;border:2px solid #e2e8f0;border-radius:12px;background:#f8fafc;transition:all 0.2s ease;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+                      <div class="labTestNameChevron" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:auto;cursor:default;color:#64748b;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </div>
+                      <div class="labTestNameList" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:2px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.08);max-height:220px;overflow:auto;z-index:50;"></div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;">
+                      <button type="button" class="btnRemoveLabTest" style="display:none;padding:10px 12px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;font-weight:700;cursor:pointer;color:#ef4444;">Remove</button>
+                    </div>
                   </div>
-                  <div class="labTestNameList" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:2px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.08);max-height:220px;overflow:auto;z-index:50;"></div>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;">
-                  <button type="button" class="btnRemoveLabTest" style="display:none;padding:10px 12px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;font-weight:700;cursor:pointer;color:#ef4444;">Remove</button>
+                <div style="margin-top:12px;display:flex;justify-content:flex-start;">
+                  <button type="button" id="btnAddLabTest" style="padding:12px 14px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;font-weight:700;cursor:pointer;">Add Test</button>
                 </div>
               </div>
-            </div>
-            <div style="margin-top:12px;display:flex;justify-content:flex-start;">
-              <button type="button" id="btnAddLabTest" style="padding:12px 14px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;font-weight:700;cursor:pointer;">Add Test</button>
+
+              <div class="form-field" style="margin:0;">
+                <label for="lab_category" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Category</label>
+                <input type="text" id="lab_category" name="lab_category" placeholder="Enter category" required style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+              </div>
             </div>
           </div>
 
-          <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-            <div class="form-field">
-              <label for="lab_category" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Category</label>
-              <div style="position:relative;">
-                <select id="lab_category" name="lab_category" required style="width:100%;padding:12px 40px 12px 16px;border:2px solid #e2e8f0;border-radius:12px;background:#f8fafc;appearance:none;-webkit-appearance:none;-moz-appearance:none;transition:all 0.2s ease;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';">
-                  <option value="">Select category</option>
-                  <option value="Hematology">Hematology</option>
-                  <option value="Chemistry">Chemistry</option>
-                  <option value="Urinalysis">Urinalysis</option>
-                  <option value="Microbiology">Microbiology</option>
-                  <option value="Immunology">Immunology</option>
-                  <option value="Serology">Serology</option>
-                  <option value="Other">Other</option>
-                </select>
-                <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:#64748b;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-            <div class="form-field">
-              <label for="lab_test_date" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Test Date</label>
-              <input type="date" id="lab_test_date" name="lab_test_date" value="<?php echo htmlspecialchars(date('Y-m-d')); ?>" required style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
-            </div>
+          <div class="form-field">
+            <label for="lab_test_date" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Test Date</label>
+            <input type="date" id="lab_test_date" name="lab_test_date" value="<?php echo htmlspecialchars(date('Y-m-d')); ?>" required style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
           </div>
 
           <div class="form-field">
