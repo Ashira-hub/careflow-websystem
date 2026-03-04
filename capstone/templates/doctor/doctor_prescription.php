@@ -381,8 +381,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
               if (!base) return;
               var clone = base.cloneNode(true);
               var input = clone.querySelector('.labTestNameInput');
+              var catInput = clone.querySelector('.labTestCategoryInput');
               var list = clone.querySelector('.labTestNameList');
               if (input) input.value = '';
+              if (catInput) catInput.value = '';
               if (list) list.innerHTML = '';
               rowsWrap.appendChild(clone);
               attachLabTestAutocomplete(clone);
@@ -547,26 +549,37 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
               e.preventDefault();
               var doctor = (document.getElementById('lab_doctor') || {}).value || '';
               var patient = (document.getElementById('lab_patient') || {}).value || '';
-              var category = (document.getElementById('lab_category') || {}).value || '';
               var testDate = (document.getElementById('lab_test_date') || {}).value || '';
               var notes = (document.getElementById('lab_notes') || {}).value || '';
 
               var rowsWrap = document.getElementById('labTestRows');
-              var inputs = rowsWrap ? Array.prototype.slice.call(rowsWrap.querySelectorAll('.labTestNameInput')) : [];
-              var tests = inputs.map(function(inp) {
-                return inp && inp.value ? String(inp.value).trim() : '';
-              }).filter(function(v) {
-                return v !== '';
+              var rows = rowsWrap ? Array.prototype.slice.call(rowsWrap.querySelectorAll('.lab-test-row')) : [];
+              var tests = rows.map(function(row) {
+                var n = row ? row.querySelector('.labTestNameInput') : null;
+                var c = row ? row.querySelector('.labTestCategoryInput') : null;
+                return {
+                  test_name: n && n.value ? String(n.value).trim() : '',
+                  category: c && c.value ? String(c.value).trim() : ''
+                };
+              }).filter(function(it) {
+                return it.test_name !== '' || it.category !== '';
               });
 
-              if (!doctor || !patient || tests.length === 0 || !category || !testDate) {
-                alert('Please fill in all required fields: Doctor, Patient, at least one Test Name, Category, and Date.');
+              if (!doctor || !patient || tests.length === 0 || !testDate) {
+                alert('Please fill in all required fields: Doctor, Patient, at least one Test Name, and Date.');
                 return;
+              }
+              for (var tIdx = 0; tIdx < tests.length; tIdx++) {
+                if (!tests[tIdx].test_name || !tests[tIdx].category) {
+                  alert('Please complete both Test Name and Category for each added test.');
+                  return;
+                }
               }
 
               try {
                 for (var idx = 0; idx < tests.length; idx++) {
-                  var testName = tests[idx];
+                  var testName = tests[idx].test_name;
+                  var category = tests[idx].category;
 
                   var createRes = await fetch(window.location.pathname + '?action=create_lab_test', {
                     method: 'POST',
@@ -661,7 +674,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
                     var first = wrap.querySelector('.lab-test-row');
                     if (first) {
                       var inp = first.querySelector('.labTestNameInput');
+                      var cat = first.querySelector('.labTestCategoryInput');
                       if (inp) inp.value = '';
+                      if (cat) cat.value = '';
                       var btns = Array.prototype.slice.call(wrap.querySelectorAll('.btnRemoveLabTest'));
                       btns.forEach(function(btn) {
                         btn.style.display = (btns.length > 1) ? '' : 'none';
@@ -846,14 +861,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
                 <label for="lab_test_name" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Test Name</label>
                 <div id="labTestRows" style="display:grid;gap:12px;">
                   <div class="lab-test-row" style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
-                    <div class="labTestNameWrap" style="position:relative;">
-                      <input type="text" class="labTestNameInput" placeholder="Select or type test name" autocomplete="off" style="width:100%;padding:12px 40px 12px 16px;border:2px solid #e2e8f0;border-radius:12px;background:#f8fafc;transition:all 0.2s ease;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
-                      <div class="labTestNameChevron" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:auto;cursor:default;color:#64748b;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
+                    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:12px;align-items:end;">
+                      <div class="labTestNameWrap" style="position:relative;">
+                        <input type="text" class="labTestNameInput" placeholder="Select or type test name" autocomplete="off" style="width:100%;padding:12px 40px 12px 16px;border:2px solid #e2e8f0;border-radius:12px;background:#f8fafc;transition:all 0.2s ease;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+                        <div class="labTestNameChevron" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:auto;cursor:default;color:#64748b;">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 9l6 6 6-6" />
+                          </svg>
+                        </div>
+                        <div class="labTestNameList" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:2px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.08);max-height:220px;overflow:auto;z-index:50;"></div>
                       </div>
-                      <div class="labTestNameList" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:2px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.08);max-height:220px;overflow:auto;z-index:50;"></div>
+                      <div>
+                        <input type="text" class="labTestCategoryInput" placeholder="Category" autocomplete="off" style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;background:#f8fafc;transition:all 0.2s ease;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
+                      </div>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;">
                       <button type="button" class="btnRemoveLabTest" style="display:none;padding:10px 12px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;font-weight:700;cursor:pointer;color:#ef4444;">Remove</button>
@@ -865,10 +885,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (($_GET['action'] ?? '') ==
                 </div>
               </div>
 
-              <div class="form-field" style="margin:0;">
-                <label for="lab_category" style="display:block;margin-bottom:8px;font-weight:600;color:#0f172a;font-size:0.9rem;">Category</label>
-                <input type="text" id="lab_category" name="lab_category" placeholder="Enter category" required style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:0.95rem;transition:all 0.2s ease;background:#f8fafc;" onfocus="this.style.borderColor='#0a5d39';this.style.background='#fff';" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';" />
-              </div>
+              <div></div>
             </div>
           </div>
 
